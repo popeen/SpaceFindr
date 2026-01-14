@@ -87,7 +87,7 @@ namespace SpaceFindr
             {
                 using (HttpClient client = new HttpClient())
                 {
-                    string url = "https://api.github.com/repos/popeen/Classic-Volume-Mixer/releases";
+                    string url = "https://api.github.com/repos/popeen/SpaceFindr/releases";
                     client.DefaultRequestHeaders.Add("User-Agent", "spacefindr-updater");
                     HttpResponseMessage response = await client.GetAsync(url);
                     response.EnsureSuccessStatusCode();
@@ -103,7 +103,7 @@ namespace SpaceFindr
                         Version currentVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
                         if (!Version.TryParse(latestTag.TrimStart('v', 'V'), out latestVersion))
                             latestVersion = new Version(latestTag.TrimStart('v', 'V'));
-                        if (latestVersion != currentVersion)
+                        if (latestVersion > currentVersion)
                         {
                             Application.Current.Dispatcher.Invoke(() =>
                             {
