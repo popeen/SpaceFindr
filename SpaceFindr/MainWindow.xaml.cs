@@ -94,33 +94,106 @@ namespace SpaceFindr
         {
             BreadcrumbPanel.Children.Clear();
             if (current == null) return;
-            var pathParts = current.FullPath.Split(System.IO.Path.DirectorySeparatorChar);
-            string cumulativePath = pathParts[0];
-            StorageItem item = _treeRoot;
+            var path = current.FullPath;
+            // Handle root (e.g. C:\)
+            if (System.IO.Path.GetPathRoot(path) == path)
+            {
+                var btn = new System.Windows.Controls.Button
+                {
+                    Content = path.TrimEnd(System.IO.Path.DirectorySeparatorChar),
+                    Margin = new Thickness(0, 0, 4, 0),
+                    Padding = new Thickness(6, 0, 6, 0),
+                    Tag = path
+                };
+                btn.Click += async (s, e) =>
+                {
+                    string targetPath = (string)btn.Tag;
+                    if (_treeRoot != null && string.Equals(_treeRoot.FullPath, targetPath, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        _currentViewRoot = _treeRoot;
+                        DrawTreemap(_treeRoot);
+                        BackButton.Visibility = _treeRoot.Parent == null ? Visibility.Collapsed : Visibility.Visible;
+                    }
+                    else
+                    {
+                        ScanningPanel.Visibility = Visibility.Visible;
+                        TreemapCanvas.Children.Clear();
+                        _treeRoot = new StorageItem { Name = System.IO.Path.GetFileName(targetPath), FullPath = targetPath, IsFolder = true };
+                        _currentViewRoot = _treeRoot;
+                        _progressStopwatch.Restart();
+                        var progress = new Progress<StorageItem>(item =>
+                        {
+                            if (_progressStopwatch.ElapsedMilliseconds > 2000)
+                            {
+                                DrawTreemap(_treeRoot);
+                                _progressStopwatch.Restart();
+                            }
+                            UpdateFooter(item);
+                        });
+                        var root = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(targetPath, progress, _treeRoot));
+                        ScanningPanel.Visibility = Visibility.Collapsed;
+                        _treeRoot = root;
+                        _currentViewRoot = root;
+                        UpdateBreadcrumbBar(root);
+                        DrawTreemap(root);
+                        BackButton.Visibility = Visibility.Collapsed;
+                        UpdateFooter(root);
+                    }
+                };
+                BreadcrumbPanel.Children.Add(btn);
+                UpdateFooter(current);
+                return;
+            }
+            // Normal path
+            var pathParts = path.TrimEnd(System.IO.Path.DirectorySeparatorChar).Split(System.IO.Path.DirectorySeparatorChar);
+            string root = System.IO.Path.GetPathRoot(path);
+            string cumulativePath = root;
             for (int i = 0; i < pathParts.Length; i++)
             {
                 string part = pathParts[i];
                 if (string.IsNullOrEmpty(part)) continue;
+                string display = (i == 0) ? root.TrimEnd(System.IO.Path.DirectorySeparatorChar) : part;
+                if (i > 0) cumulativePath = System.IO.Path.Combine(cumulativePath, part);
                 var btn = new System.Windows.Controls.Button
                 {
-                    Content = part,
+                    Content = display,
                     Margin = new Thickness(0, 0, 4, 0),
                     Padding = new Thickness(6, 0, 6, 0),
-                    Tag = i
+                    Tag = cumulativePath
                 };
-                btn.Click += (s, e) =>
+                btn.Click += async (s, e) =>
                 {
-                    StorageItem target = _treeRoot;
-                    for (int j = 1; j <= (int)btn.Tag; j++)
+                    string targetPath = (string)btn.Tag;
+                    if (_treeRoot != null && string.Equals(_treeRoot.FullPath, targetPath, System.StringComparison.OrdinalIgnoreCase))
                     {
-                        string segment = pathParts[j];
-                        target = target.Children?.FirstOrDefault(x => x.Name == segment && x.IsFolder) ?? target;
+                        _currentViewRoot = _treeRoot;
+                        DrawTreemap(_treeRoot);
+                        BackButton.Visibility = _treeRoot.Parent == null ? Visibility.Collapsed : Visibility.Visible;
                     }
-                    if (target != null)
+                    else
                     {
-                        _currentViewRoot = target;
-                        DrawTreemap(target);
-                        BackButton.Visibility = target.Parent == null ? Visibility.Collapsed : Visibility.Visible;
+                        ScanningPanel.Visibility = Visibility.Visible;
+                        TreemapCanvas.Children.Clear();
+                        _treeRoot = new StorageItem { Name = System.IO.Path.GetFileName(targetPath), FullPath = targetPath, IsFolder = true };
+                        _currentViewRoot = _treeRoot;
+                        _progressStopwatch.Restart();
+                        var progress = new Progress<StorageItem>(item =>
+                        {
+                            if (_progressStopwatch.ElapsedMilliseconds > 2000)
+                            {
+                                DrawTreemap(_treeRoot);
+                                _progressStopwatch.Restart();
+                            }
+                            UpdateFooter(item);
+                        });
+                        var rootItem = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(targetPath, progress, _treeRoot));
+                        ScanningPanel.Visibility = Visibility.Collapsed;
+                        _treeRoot = rootItem;
+                        _currentViewRoot = rootItem;
+                        UpdateBreadcrumbBar(rootItem);
+                        DrawTreemap(rootItem);
+                        BackButton.Visibility = Visibility.Collapsed;
+                        UpdateFooter(rootItem);
                     }
                 };
                 BreadcrumbPanel.Children.Add(btn);
@@ -129,7 +202,6 @@ namespace SpaceFindr
                     BreadcrumbPanel.Children.Add(new TextBlock { Text = ">", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
                 }
             }
-            // At the end, update the footer
             UpdateFooter(current);
         }
 
