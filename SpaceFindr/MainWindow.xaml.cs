@@ -38,10 +38,18 @@ namespace SpaceFindr
 
         private bool _showFreeSpace = true;
         private bool _checkUpdatesOnStart = true;
+        private const string RegistryPath = @"Software\\Popeen\\SpaceFindr";
+        private const string ShowFreeSpaceKey = "ShowFreeSpace";
+        private const string CheckUpdatesKey = "CheckUpdatesOnStart";
+        private bool _isInitializing = true;
 
         public MainWindow()
         {
             InitializeComponent();
+            LoadSettingsFromRegistry();
+            ShowFreeSpaceCheckBox.IsChecked = _showFreeSpace;
+            CheckUpdatesOnStartCheckBox.IsChecked = _checkUpdatesOnStart;
+            _isInitializing = false;
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
             this.Title = $"SpaceFindr ALPHA v.{version}";
             this.PreviewMouseDown += MainWindow_PreviewMouseDown;
@@ -52,13 +60,34 @@ namespace SpaceFindr
             }
         }
 
+        private void LoadSettingsFromRegistry()
+        {
+            using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegistryPath))
+            {
+                if (key != null)
+                {
+                    _showFreeSpace = Convert.ToBoolean(key.GetValue(ShowFreeSpaceKey, true));
+                    _checkUpdatesOnStart = Convert.ToBoolean(key.GetValue(CheckUpdatesKey, true));
+                }
+            }
+        }
+
+        private void SaveSettingsToRegistry()
+        {
+            using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RegistryPath))
+            {
+                key.SetValue(ShowFreeSpaceKey, _showFreeSpace);
+                key.SetValue(CheckUpdatesKey, _checkUpdatesOnStart);
+            }
+        }
+
         private async Task CheckForUpdatesAsync()
         {
             try
             {
                 using (HttpClient client = new HttpClient())
                 {
-                    string url = "https://api.github.com/repos/popeen/SpaceFindr/releases";
+                    string url = "https://api.github.com/repos/popeen/Classic-Volume-Mixer/releases";
                     client.DefaultRequestHeaders.Add("User-Agent", "spacefindr-updater");
                     HttpResponseMessage response = await client.GetAsync(url);
                     response.EnsureSuccessStatusCode();
@@ -74,7 +103,7 @@ namespace SpaceFindr
                         Version currentVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
                         if (!Version.TryParse(latestTag.TrimStart('v', 'V'), out latestVersion))
                             latestVersion = new Version(latestTag.TrimStart('v', 'V'));
-                        if (latestVersion > currentVersion)
+                        if (latestVersion != currentVersion)
                         {
                             Application.Current.Dispatcher.Invoke(() =>
                             {
@@ -400,6 +429,7 @@ namespace SpaceFindr
         private void ShowFreeSpaceCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             _showFreeSpace = true;
+            if (!_isInitializing) SaveSettingsToRegistry();
             if (_currentViewRoot != null)
                 DrawTreemap(_currentViewRoot);
         }
@@ -407,6 +437,7 @@ namespace SpaceFindr
         private void ShowFreeSpaceCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             _showFreeSpace = false;
+            if (!_isInitializing) SaveSettingsToRegistry();
             if (_currentViewRoot != null)
                 DrawTreemap(_currentViewRoot);
         }
@@ -414,11 +445,13 @@ namespace SpaceFindr
         private void CheckUpdatesOnStartCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             _checkUpdatesOnStart = true;
+            if (!_isInitializing) SaveSettingsToRegistry();
         }
 
         private void CheckUpdatesOnStartCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             _checkUpdatesOnStart = false;
+            if (!_isInitializing) SaveSettingsToRegistry();
         }
 
         private void DrawTreemap(StorageItem root)
