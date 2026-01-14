@@ -37,6 +37,8 @@ namespace SpaceFindr
         public MainWindow()
         {
             InitializeComponent();
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
+            this.Title = $"SpaceFindr ALPHA v.{version}";
             this.PreviewMouseDown += MainWindow_PreviewMouseDown;
             UpdateDriveUsage(null); // Load all drives on startup
         }
@@ -134,14 +136,39 @@ namespace SpaceFindr
                 btn.Click += async (s, e) =>
                 {
                     string targetPath = (string)btn.Tag;
-                    if (_treeRoot != null && string.Equals(_treeRoot.FullPath, targetPath, System.StringComparison.OrdinalIgnoreCase))
+                    // Try to find an existing StorageItem for the target path
+                    StorageItem targetItem = null;
+                    if (_treeRoot != null)
                     {
-                        _currentViewRoot = _treeRoot;
-                        DrawTreemap(_treeRoot);
-                        BackButton.Visibility = _treeRoot.Parent == null ? Visibility.Collapsed : Visibility.Visible;
+                        // Traverse tree to find the item
+                        var stack = new Stack<StorageItem>();
+                        stack.Push(_treeRoot);
+                        while (stack.Count > 0)
+                        {
+                            var item = stack.Pop();
+                            if (item != null && string.Equals(item.FullPath, targetPath, StringComparison.OrdinalIgnoreCase))
+                            {
+                                targetItem = item;
+                                break;
+                            }
+                            if (item?.Children != null)
+                            {
+                                foreach (var child in item.Children)
+                                    stack.Push(child);
+                            }
+                        }
+                    }
+                    if (targetItem != null && targetItem.Children != null && targetItem.Children.Count > 0)
+                    {
+                        // Use cached data
+                        _currentViewRoot = targetItem;
+                        DrawTreemap(targetItem);
+                        BackButton.Visibility = targetItem.Parent == null ? Visibility.Collapsed : Visibility.Visible;
+                        UpdateFooter(targetItem);
                     }
                     else
                     {
+                        // Scan as before
                         ScanningPanel.Visibility = Visibility.Visible;
                         TreemapCanvas.Children.Clear();
                         _treeRoot = new StorageItem { Name = System.IO.Path.GetFileName(targetPath), FullPath = targetPath, IsFolder = true };
@@ -154,7 +181,7 @@ namespace SpaceFindr
                                 if (_progressStopwatch.ElapsedMilliseconds > 2000)
                                 {
                                     DrawTreemap(_treeRoot);
-                                    UpdateFilesListView(); // Throttle file list updates to match treemap
+                                    UpdateFilesListView();
                                     _progressStopwatch.Restart();
                                 }
                                 UpdateFooter(item);
@@ -194,14 +221,39 @@ namespace SpaceFindr
                 btn.Click += async (s, e) =>
                 {
                     string targetPath = (string)btn.Tag;
-                    if (_treeRoot != null && string.Equals(_treeRoot.FullPath, targetPath, System.StringComparison.OrdinalIgnoreCase))
+                    // Try to find an existing StorageItem for the target path
+                    StorageItem targetItem = null;
+                    if (_treeRoot != null)
                     {
-                        _currentViewRoot = _treeRoot;
-                        DrawTreemap(_treeRoot);
-                        BackButton.Visibility = _treeRoot.Parent == null ? Visibility.Collapsed : Visibility.Visible;
+                        // Traverse tree to find the item
+                        var stack = new Stack<StorageItem>();
+                        stack.Push(_treeRoot);
+                        while (stack.Count > 0)
+                        {
+                            var item = stack.Pop();
+                            if (item != null && string.Equals(item.FullPath, targetPath, StringComparison.OrdinalIgnoreCase))
+                            {
+                                targetItem = item;
+                                break;
+                            }
+                            if (item?.Children != null)
+                            {
+                                foreach (var child in item.Children)
+                                    stack.Push(child);
+                            }
+                        }
+                    }
+                    if (targetItem != null && targetItem.Children != null && targetItem.Children.Count > 0)
+                    {
+                        // Use cached data
+                        _currentViewRoot = targetItem;
+                        DrawTreemap(targetItem);
+                        BackButton.Visibility = targetItem.Parent == null ? Visibility.Collapsed : Visibility.Visible;
+                        UpdateFooter(targetItem);
                     }
                     else
                     {
+                        // Scan as before
                         ScanningPanel.Visibility = Visibility.Visible;
                         TreemapCanvas.Children.Clear();
                         _treeRoot = new StorageItem { Name = System.IO.Path.GetFileName(targetPath), FullPath = targetPath, IsFolder = true };
