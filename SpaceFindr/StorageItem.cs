@@ -105,6 +105,7 @@ namespace SpaceFindr
                 Parent = parent
             };
             long totalSize = 0;
+            DateTime lastReport = DateTime.Now;
             try
             {
                 foreach (var dir in dirInfo.GetDirectories())
@@ -113,7 +114,11 @@ namespace SpaceFindr
                     if (child == null) continue;
                     root.Children.Add(child);
                     totalSize += child.Size;
-                    progress?.Report(rootRef ?? root);
+                    if ((DateTime.Now - lastReport).TotalMilliseconds > 500)
+                    {
+                        progress?.Report(rootRef ?? root);
+                        lastReport = DateTime.Now;
+                    }
                 }
                 foreach (var file in dirInfo.GetFiles())
                 {
@@ -129,7 +134,11 @@ namespace SpaceFindr
                     };
                     root.Children.Add(fileItem);
                     totalSize += file.Length;
-                    progress?.Report(rootRef ?? root);
+                    if ((DateTime.Now - lastReport).TotalMilliseconds > 500)
+                    {
+                        progress?.Report(rootRef ?? root);
+                        lastReport = DateTime.Now;
+                    }
                 }
             }
             catch { /* Ignore access errors */ }

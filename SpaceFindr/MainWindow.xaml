@@ -12,32 +12,23 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/> <!-- Footer row -->
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <Grid Grid.Row="0" Margin="0,0,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+        <StackPanel x:Name="DrivesPanel" Orientation="Horizontal" Grid.Row="0" HorizontalAlignment="Left" Margin="0,0,0,10" />
+        <Grid Grid.Row="1" Margin="0,0,0,10">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Button x:Name="BrowseButton" Content="Browse Folder" Width="150" Height="40" Margin="0,0,10,0" Click="BrowseButton_Click"/>
                 <Button x:Name="BackButton" Content="Back" Width="80" Height="40" Margin="0,0,10,0" Click="BackButton_Click" Visibility="Collapsed"/>
+                <StackPanel Orientation="Horizontal" x:Name="ScanningPanel" Margin="10,0,0,0" Visibility="Collapsed">
+                    <ProgressBar IsIndeterminate="True" Width="32" Height="32" Margin="0,0,8,0"/>
+                    <Label Content="Scanning..." VerticalAlignment="Center"/>
+                </StackPanel>
                 <StackPanel x:Name="BreadcrumbPanel" Orientation="Horizontal" VerticalAlignment="Center" Height="40" />
             </StackPanel>
-            <StackPanel Orientation="Vertical" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,0,0">
-                <TextBlock x:Name="DriveUsageName" FontWeight="Normal" FontSize="13" Margin="0,0,0,2"/>
-                <ProgressBar x:Name="DriveUsageBar" Width="180" Height="18" VerticalAlignment="Center" Minimum="0" Maximum="100" Margin="0,0,0,0"/>
-                <TextBlock x:Name="DriveUsageText" VerticalAlignment="Center" Margin="0,4,0,0" TextAlignment="Left"/>
-            </StackPanel>
         </Grid>
-        <StackPanel Orientation="Horizontal" Grid.Row="1" Margin="0,0,0,10" Visibility="Collapsed" x:Name="ScanningPanel">
-            <ProgressBar IsIndeterminate="True" Width="150" Height="20" Margin="0,0,10,0"/>
-            <Label Content="Scanning..." VerticalAlignment="Center"/>
-        </StackPanel>
         <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" CornerRadius="6">
             <Canvas x:Name="TreemapCanvas" Background="#FAFAFA"/>
         </Border>
-        <!-- Footer -->
         <StatusBar Grid.Row="3" Height="28" VerticalAlignment="Bottom">
             <StatusBarItem>
                 <TextBlock x:Name="CurrentFolderText" Text="Current folder: " />

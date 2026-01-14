@@ -1,9 +1,20 @@
-﻿using System.Windows;
+﻿using System.Text;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+using Microsoft.Win32;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System;
 using System.Diagnostics;
+using System.Threading;
 // Only use the specific type from System.Windows.Forms when needed
 
 namespace SpaceFindr
@@ -20,10 +31,13 @@ namespace SpaceFindr
         private Stack<StorageItem> _backStack = new Stack<StorageItem>();
         private Stack<StorageItem> _forwardStack = new Stack<StorageItem>();
 
+        private DateTime _lastFooterUpdate = DateTime.MinValue;
+
         public MainWindow()
         {
             InitializeComponent();
             this.PreviewMouseDown += MainWindow_PreviewMouseDown;
+            UpdateDriveUsage(null); // Load all drives on startup
         }
 
         private void MainWindow_PreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -80,14 +94,24 @@ namespace SpaceFindr
                 FolderFileCountText.Text = "Items: 0 folders, 0 files";
                 return;
             }
-            CurrentFolderText.Text = $"Current folder: {folder.FullPath}";
-            if (folder.Children == null)
+            // Show the path currently being scanned if a scan is in progress
+            if (ScanningPanel.Visibility == Visibility.Visible)
+            {
+                CurrentFolderText.Text = $"Scanning: {folder.FullPath}";
+            }
+            else
+            {
+                var current = _currentViewRoot ?? folder;
+                CurrentFolderText.Text = $"Current folder: {current.FullPath}";
+            }
+            var children = folder.Children ?? (_currentViewRoot?.Children);
+            if (children == null)
             {
                 FolderFileCountText.Text = "Items: 0 folders, 0 files";
                 return;
             }
-            int folderCount = folder.Children.Count(x => x != null && x.IsFolder);
-            int fileCount = folder.Children.Count(x => x != null && !x.IsFolder);
+            int folderCount = children.Count(x => x != null && x.IsFolder);
+            int fileCount = children.Count(x => x != null && !x.IsFolder);
             FolderFileCountText.Text = $"Items: {folderCount} folders, {fileCount} files";
         }
 
@@ -124,12 +148,15 @@ namespace SpaceFindr
                         _progressStopwatch.Restart();
                         var progress = new Progress<StorageItem>(item =>
                         {
-                            if (_progressStopwatch.ElapsedMilliseconds > 2000)
+                            Application.Current.Dispatcher.Invoke(() =>
                             {
-                                DrawTreemap(_treeRoot);
-                                _progressStopwatch.Restart();
-                            }
-                            UpdateFooter(item);
+                                if (_progressStopwatch.ElapsedMilliseconds > 2000)
+                                {
+                                    DrawTreemap(_treeRoot);
+                                    _progressStopwatch.Restart();
+                                }
+                                UpdateFooter(item);
+                            });
                         });
                         var root = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(targetPath, progress, _treeRoot));
                         ScanningPanel.Visibility = Visibility.Collapsed;
@@ -180,12 +207,15 @@ namespace SpaceFindr
                         _progressStopwatch.Restart();
                         var progress = new Progress<StorageItem>(item =>
                         {
-                            if (_progressStopwatch.ElapsedMilliseconds > 2000)
+                            Application.Current.Dispatcher.Invoke(() =>
                             {
-                                DrawTreemap(_treeRoot);
-                                _progressStopwatch.Restart();
-                            }
-                            UpdateFooter(item);
+                                if (_progressStopwatch.ElapsedMilliseconds > 2000)
+                                {
+                                    DrawTreemap(_treeRoot);
+                                    _progressStopwatch.Restart();
+                                }
+                                UpdateFooter(item);
+                            });
                         });
                         var rootItem = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(targetPath, progress, _treeRoot));
                         ScanningPanel.Visibility = Visibility.Collapsed;
@@ -225,16 +255,23 @@ namespace SpaceFindr
                     _treeRoot = new StorageItem { Name = selectedPath, FullPath = selectedPath, IsFolder = true };
                     _currentViewRoot = _treeRoot;
                     _progressStopwatch.Restart();
+
                     var progress = new Progress<StorageItem>(item =>
                     {
-                        if (_progressStopwatch.ElapsedMilliseconds > 2000)
+                        Application.Current.Dispatcher.Invoke(() =>
                         {
-                            DrawTreemap(_treeRoot);
-                            _progressStopwatch.Restart();
-                        }
-                        UpdateFooter(item);
+                            if (_progressStopwatch.ElapsedMilliseconds > 2000)
+                            {
+                                DrawTreemap(_treeRoot);
+                                _progressStopwatch.Restart();
+                            }
+                            });
                     });
+
+                    // Run scan on background thread
                     var root = await Task.Run(() => StorageItem.BuildFromDirectory(selectedPath, progress, _treeRoot), _loadingCts.Token);
+
+                    // Final UI update after scan
                     ScanningPanel.Visibility = Visibility.Collapsed;
                     _treeRoot = root;
                     _currentViewRoot = root;
@@ -534,47 +571,77 @@ namespace SpaceFindr
 
         private void UpdateDriveUsage(string path)
         {
-            try
+            DrivesPanel.Children.Clear();
+            foreach (var drive in DriveInfo.GetDrives())
             {
-                string root = System.IO.Path.GetPathRoot(path);
-                if (string.IsNullOrEmpty(root))
-                {
-                    DriveUsageName.Text = "";
-                    DriveUsageText.Text = "";
-                    DriveUsageBar.Value = 0;
-                    return;
-                }
-                var drive = new DriveInfo(root);
-                if (!drive.IsReady)
-                {
-                    DriveUsageName.Text = root;
-                    DriveUsageText.Text = "(not ready)";
-                    DriveUsageBar.Value = 0;
-                    return;
-                }
+                if (!drive.IsReady) continue;
+                string root = drive.Name;
                 string label = drive.VolumeLabel;
-                string driveLetter = root.Length >= 2 ? root.Substring(0, 2) : root; // e.g. C:
-                string driveDisplay = string.IsNullOrWhiteSpace(label)
-                    ? $"Local Disk ({driveLetter})"
-                    : $"{label} ({driveLetter})";
+                string driveLetter = root.Length >= 2 ? root.Substring(0, 2) : root;
+                string driveDisplay = $"{drive.Name} ({driveLetter})"; // Default assignment
+                if (drive.DriveType == DriveType.Network)
+                {
+                    string unc = label;
+                    if (string.IsNullOrWhiteSpace(unc))
+                        unc = drive.RootDirectory.FullName.TrimEnd('/');
+                    if(unc.Substring(0, 2) == driveLetter)
+                        unc = "Network Drive";
+                    driveDisplay = $"{unc} ({driveLetter})";
+                }
+                else if (drive.DriveType == DriveType.Fixed)
+                {
+                    driveDisplay = string.IsNullOrWhiteSpace(label)
+                        ? $"Local Disk ({driveLetter})"
+                        : $"{label} ({driveLetter})";
+                }
+                else
+                {
+                    driveDisplay = $"{drive.DriveType} ({driveLetter})";
+                }
                 double total = drive.TotalSize;
                 double free = drive.AvailableFreeSpace;
                 double percent = total > 0 ? ((total - free) / total) * 100 : 0;
                 double percentFree = total > 0 ? (free / total) * 100 : 0;
-                DriveUsageBar.Value = percent;
-                // Color: red if <10% free, else blue
-                if (percentFree < 10)
-                    DriveUsageBar.Foreground = Brushes.Red;
-                else
-                    DriveUsageBar.Foreground = Brushes.DodgerBlue;
-                DriveUsageName.Text = driveDisplay;
-                DriveUsageText.Text = $"{FormatSize((long)free)} free of {FormatSize((long)total)}";
-            }
-            catch
-            {
-                DriveUsageName.Text = "";
-                DriveUsageText.Text = "";
-                DriveUsageBar.Value = 0;
+
+                var panel = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 16, 0), Width = 180, Cursor = System.Windows.Input.Cursors.Hand };
+                var nameText = new TextBlock { Text = driveDisplay, FontWeight = FontWeights.Normal, FontSize = 13, Margin = new Thickness(0, 0, 0, 2) };
+                var bar = new ProgressBar { Width = 180, Height = 18, Minimum = 0, Maximum = 100, Value = percent };
+                bar.Foreground = percentFree < 10 ? Brushes.Red : Brushes.DodgerBlue;
+                var freeText = new TextBlock { Text = $"{FormatSize((long)free)} free of {FormatSize((long)total)}", Margin = new Thickness(0, 4, 0, 0), TextAlignment = TextAlignment.Left };
+                panel.Children.Add(nameText);
+                panel.Children.Add(bar);
+                panel.Children.Add(freeText);
+                panel.MouseLeftButtonUp += async (s, e) =>
+                {
+                    ScanningPanel.Visibility = Visibility.Visible;
+                    await System.Threading.Tasks.Task.Yield(); // Force UI update
+                    TreemapCanvas.Children.Clear();
+                    _treeRoot = new StorageItem { Name = driveDisplay, FullPath = root, IsFolder = true };
+                    _currentViewRoot = _treeRoot;
+                    _progressStopwatch.Restart();
+                    var progress = new Progress<StorageItem>(item =>
+                    {
+                        var now = DateTime.Now;
+                        if ((now - _lastFooterUpdate).TotalMilliseconds > 500)
+                        {
+                            _lastFooterUpdate = now;
+                            Application.Current.Dispatcher.InvokeAsync(() =>
+                            {
+                                DrawTreemap(_treeRoot);
+                                UpdateFooter(item);
+                            });
+                        }
+                    });
+                    var rootItem = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(root, progress, _treeRoot));
+                    ScanningPanel.Visibility = Visibility.Collapsed;
+                    _treeRoot = rootItem;
+                    _currentViewRoot = rootItem;
+                    UpdateBreadcrumbBar(rootItem);
+                    DrawTreemap(rootItem);
+                    BackButton.Visibility = Visibility.Collapsed;
+                    UpdateFooter(rootItem);
+                };
+                DrivesPanel.Children.Add(panel);
             }
         }
     }
