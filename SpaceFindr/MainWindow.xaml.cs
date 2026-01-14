@@ -16,10 +16,78 @@ namespace SpaceFindr
         private StorageItem _currentViewRoot; // The currently viewed folder
         private Stopwatch _progressStopwatch = new Stopwatch();
         private CancellationTokenSource _loadingCts;
+        private Stack<StorageItem> _backStack = new Stack<StorageItem>();
+        private Stack<StorageItem> _forwardStack = new Stack<StorageItem>();
 
         public MainWindow()
         {
             InitializeComponent();
+            this.PreviewMouseDown += MainWindow_PreviewMouseDown;
+        }
+
+        private void MainWindow_PreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == System.Windows.Input.MouseButton.XButton1)
+            {
+                NavigateBack();
+                e.Handled = true;
+            }
+            else if (e.ChangedButton == System.Windows.Input.MouseButton.XButton2)
+            {
+                NavigateForward();
+                e.Handled = true;
+            }
+        }
+
+        private void NavigateBack()
+        {
+            if (_currentViewRoot?.Parent != null)
+            {
+                _forwardStack.Push(_currentViewRoot);
+                _backStack.Push(_currentViewRoot);
+                _currentViewRoot = _currentViewRoot.Parent;
+                UpdateBreadcrumbBar(_currentViewRoot);
+                DrawTreemap(_currentViewRoot);
+                if (_currentViewRoot.Parent == null)
+                    BackButton.Visibility = Visibility.Collapsed;
+                UpdateFooter(_currentViewRoot);
+            }
+        }
+
+        private void NavigateForward()
+        {
+            if (_forwardStack.Count > 0)
+            {
+                var next = _forwardStack.Pop();
+                if (next != null)
+                {
+                    _backStack.Push(_currentViewRoot);
+                    _currentViewRoot = next;
+                    UpdateBreadcrumbBar(_currentViewRoot);
+                    DrawTreemap(_currentViewRoot);
+                    BackButton.Visibility = _currentViewRoot.Parent == null ? Visibility.Collapsed : Visibility.Visible;
+                    UpdateFooter(_currentViewRoot);
+                }
+            }
+        }
+
+        private void UpdateFooter(StorageItem folder)
+        {
+            if (folder == null)
+            {
+                CurrentFolderText.Text = "Current folder: ";
+                FolderFileCountText.Text = "Items: 0 folders, 0 files";
+                return;
+            }
+            CurrentFolderText.Text = $"Current folder: {folder.FullPath}";
+            if (folder.Children == null)
+            {
+                FolderFileCountText.Text = "Items: 0 folders, 0 files";
+                return;
+            }
+            int folderCount = folder.Children.Count(x => x != null && x.IsFolder);
+            int fileCount = folder.Children.Count(x => x != null && !x.IsFolder);
+            FolderFileCountText.Text = $"Items: {folderCount} folders, {fileCount} files";
         }
 
         private void UpdateBreadcrumbBar(StorageItem current)
@@ -61,6 +129,8 @@ namespace SpaceFindr
                     BreadcrumbPanel.Children.Add(new TextBlock { Text = ">", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
                 }
             }
+            // At the end, update the footer
+            UpdateFooter(current);
         }
 
         private async void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -87,6 +157,7 @@ namespace SpaceFindr
                             DrawTreemap(_treeRoot);
                             _progressStopwatch.Restart();
                         }
+                        UpdateFooter(item);
                     });
                     var root = await Task.Run(() => StorageItem.BuildFromDirectory(selectedPath, progress, _treeRoot), _loadingCts.Token);
                     ScanningPanel.Visibility = Visibility.Collapsed;
@@ -95,6 +166,7 @@ namespace SpaceFindr
                     UpdateBreadcrumbBar(root);
                     DrawTreemap(root);
                     BackButton.Visibility = Visibility.Collapsed;
+                    UpdateFooter(root);
                 }
             }
             catch (Exception ex)
@@ -106,14 +178,7 @@ namespace SpaceFindr
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentViewRoot?.Parent != null)
-            {
-                _currentViewRoot = _currentViewRoot.Parent;
-                UpdateBreadcrumbBar(_currentViewRoot);
-                DrawTreemap(_currentViewRoot);
-                if (_currentViewRoot.Parent == null)
-                    BackButton.Visibility = Visibility.Collapsed;
-            }
+            NavigateBack();
         }
 
         private void DrawTreemap(StorageItem root)
@@ -130,6 +195,7 @@ namespace SpaceFindr
             }
 
             UpdateBreadcrumbBar(root);
+            UpdateFooter(root);
 
             var rects = TreemapHelper.Squarify(root.Children, 0, 0, width, height);
             foreach (var treemapRect in rects)
@@ -198,7 +264,9 @@ namespace SpaceFindr
                             await Task.Run(() => StorageItem.BuildFromDirectory(child.FullPath, progress, child), _loadingCts.Token);
                         }
                         ScanningPanel.Visibility = Visibility.Collapsed;
+                        _backStack.Push(_currentViewRoot);
                         _currentViewRoot = child;
+                        _forwardStack.Clear();
                         BackButton.Visibility = Visibility.Visible;
                         UpdateBreadcrumbBar(child);
                         DrawTreemap(child);

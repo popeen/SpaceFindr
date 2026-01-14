@@ -12,6 +12,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/> <!-- Footer row -->
         </Grid.RowDefinitions>
         <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
             <Button x:Name="BrowseButton" Content="Browse Folder" Width="150" Height="40" Margin="0,0,10,0" Click="BrowseButton_Click"/>
@@ -25,5 +26,14 @@
         <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" CornerRadius="6">
             <Canvas x:Name="TreemapCanvas" Background="#FAFAFA"/>
         </Border>
+        <!-- Footer -->
+        <StatusBar Grid.Row="3" Height="28" VerticalAlignment="Bottom">
+            <StatusBarItem>
+                <TextBlock x:Name="CurrentFolderText" Text="Current folder: " />
+            </StatusBarItem>
+            <StatusBarItem>
+                <TextBlock x:Name="FolderFileCountText" Text="Items: 0 folders, 0 files" />
+            </StatusBarItem>
+        </StatusBar>
     </Grid>
 </Window>
