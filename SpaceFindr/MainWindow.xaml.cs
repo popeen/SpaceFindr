@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.IO;
 using System.Diagnostics;
@@ -203,6 +204,8 @@ namespace SpaceFindr
                 }
             }
             UpdateFooter(current);
+            if (current != null)
+                UpdateDriveUsage(current.FullPath);
         }
 
         private async void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -258,6 +261,7 @@ namespace SpaceFindr
             TreemapCanvas.Children.Clear();
             if (root == null || root.Children == null || root.Children.Count == 0) return;
 
+            TreemapCanvas.UpdateLayout(); // Ensure ActualWidth/Height are up to date
             double width = TreemapCanvas.ActualWidth;
             double height = TreemapCanvas.ActualHeight;
             if (width == 0 || height == 0)
@@ -441,7 +445,18 @@ namespace SpaceFindr
                 try
                 {
                     Directory.Delete(folder.FullPath, true);
-                    DrawTreemap(_currentViewRoot);
+                    if (folder.Parent != null)
+                    {
+                        folder.Parent.Children.Remove(folder);
+                        folder.Parent.Size -= folder.Size;
+                        DrawTreemap(folder.Parent);
+                        UpdateDriveUsage(folder.Parent.FullPath);
+                    }
+                    else
+                    {
+                        DrawTreemap(_currentViewRoot);
+                        UpdateDriveUsage(_currentViewRoot.FullPath);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -462,10 +477,12 @@ namespace SpaceFindr
                         file.Parent.Children.Remove(file);
                         file.Parent.Size -= file.Size;
                         DrawTreemap(file.Parent);
+                        UpdateDriveUsage(file.Parent.FullPath);
                     }
                     else
                     {
                         DrawTreemap(_currentViewRoot);
+                        UpdateDriveUsage(_currentViewRoot.FullPath);
                     }
                 }
                 catch (Exception ex)
@@ -512,6 +529,52 @@ namespace SpaceFindr
             catch (Exception ex)
             {
                 MessageBox.Show($"Failed to open browser: {ex.Message}", "Error");
+            }
+        }
+
+        private void UpdateDriveUsage(string path)
+        {
+            try
+            {
+                string root = System.IO.Path.GetPathRoot(path);
+                if (string.IsNullOrEmpty(root))
+                {
+                    DriveUsageName.Text = "";
+                    DriveUsageText.Text = "";
+                    DriveUsageBar.Value = 0;
+                    return;
+                }
+                var drive = new DriveInfo(root);
+                if (!drive.IsReady)
+                {
+                    DriveUsageName.Text = root;
+                    DriveUsageText.Text = "(not ready)";
+                    DriveUsageBar.Value = 0;
+                    return;
+                }
+                string label = drive.VolumeLabel;
+                string driveLetter = root.Length >= 2 ? root.Substring(0, 2) : root; // e.g. C:
+                string driveDisplay = string.IsNullOrWhiteSpace(label)
+                    ? $"Local Disk ({driveLetter})"
+                    : $"{label} ({driveLetter})";
+                double total = drive.TotalSize;
+                double free = drive.AvailableFreeSpace;
+                double percent = total > 0 ? ((total - free) / total) * 100 : 0;
+                double percentFree = total > 0 ? (free / total) * 100 : 0;
+                DriveUsageBar.Value = percent;
+                // Color: red if <10% free, else blue
+                if (percentFree < 10)
+                    DriveUsageBar.Foreground = Brushes.Red;
+                else
+                    DriveUsageBar.Foreground = Brushes.DodgerBlue;
+                DriveUsageName.Text = driveDisplay;
+                DriveUsageText.Text = $"{FormatSize((long)free)} free of {FormatSize((long)total)}";
+            }
+            catch
+            {
+                DriveUsageName.Text = "";
+                DriveUsageText.Text = "";
+                DriveUsageBar.Value = 0;
             }
         }
     }
