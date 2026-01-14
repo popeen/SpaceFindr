@@ -302,6 +302,30 @@ namespace SpaceFindr
             TreemapCanvas.Children.Clear();
             if (root == null || root.Children == null || root.Children.Count == 0) return;
 
+            // If root is a drive, add a synthetic StorageItem for free space
+            string driveRoot = System.IO.Path.GetPathRoot(root.FullPath);
+            var children = root.Children.ToList();
+            bool isDriveRoot = string.Equals(root.FullPath, driveRoot, StringComparison.OrdinalIgnoreCase);
+            if (isDriveRoot)
+            {
+                try
+                {
+                    var drive = new DriveInfo(driveRoot);
+                    if (drive.IsReady)
+                    {
+                        var freeSpaceItem = new StorageItem
+                        {
+                            Name = "Free space",
+                            FullPath = driveRoot,
+                            IsFolder = false,
+                            Size = drive.AvailableFreeSpace
+                        };
+                        children.Add(freeSpaceItem);
+                    }
+                }
+                catch { }
+            }
+
             TreemapCanvas.UpdateLayout(); // Ensure ActualWidth/Height are up to date
             double width = TreemapCanvas.ActualWidth;
             double height = TreemapCanvas.ActualHeight;
@@ -314,13 +338,16 @@ namespace SpaceFindr
             UpdateBreadcrumbBar(root);
             UpdateFooter(root);
 
-            var rects = TreemapHelper.Squarify(root.Children, 0, 0, width, height);
+            var rects = TreemapHelper.Squarify(children, 0, 0, width, height);
             foreach (var treemapRect in rects)
             {
                 var child = treemapRect.Item;
                 var r = treemapRect.Rect;
                 Brush fillBrush;
-                if (child.IsFolder)
+                bool isFreeSpaceRect = isDriveRoot && child.Name == "Free space" && string.Equals(child.FullPath, driveRoot, StringComparison.OrdinalIgnoreCase);
+                if (isFreeSpaceRect)
+                    fillBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCC"));
+                else if (child.IsFolder)
                     fillBrush = Brushes.LightGreen;
                 else if (child.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     fillBrush = Brushes.SteelBlue;
@@ -333,66 +360,70 @@ namespace SpaceFindr
                     Fill = fillBrush,
                     Stroke = Brushes.Black,
                     StrokeThickness = 1,
-                    ToolTip = $"{child.Name}\n{FormatSize(child.Size)}"
+                    ToolTip = isFreeSpaceRect ? $"Free space: {FormatSize(child.Size)}" : $"{child.Name}\n{FormatSize(child.Size)}"
                 };
-
-                // Context menu
-                var contextMenu = new System.Windows.Controls.ContextMenu();
-                var askAiMenu = new MenuItem { Header = "Ask AI" };
-                askAiMenu.Click += (s, e) => AskAI(child);
-                if (child.IsFolder)
+                // Only attach context menu and zoom for real files/folders
+                if (!isFreeSpaceRect)
                 {
-                    var deleteFolder = new MenuItem { Header = "Delete Folder" };
-                    deleteFolder.Click += (s, e) => DeleteFolder(child);
-                    var openInExplorer = new MenuItem { Header = "Open in File Explorer" };
-                    openInExplorer.Click += (s, e) => OpenInExplorer(child.FullPath);
-                    contextMenu.Items.Add(openInExplorer);
-                    contextMenu.Items.Add(askAiMenu);
-                    contextMenu.Items.Add(deleteFolder);
-                }
-                else
-                {
-                    var deleteFile = new MenuItem { Header = "Delete File" };
-                    deleteFile.Click += (s, e) => DeleteFile(child);
-                    var openFolder = new MenuItem { Header = "Open in File Explorer" };
-                    openFolder.Click += (s, e) => OpenInExplorer(System.IO.Path.GetDirectoryName(child.FullPath));
-                    var openFile = new MenuItem { Header = "Open File" };
-                    openFile.Click += (s, e) => OpenFile(child.FullPath);
-                    contextMenu.Items.Add(openFile);
-                    contextMenu.Items.Add(openFolder);
-                    contextMenu.Items.Add(askAiMenu);
-                    contextMenu.Items.Add(deleteFile);
-                }
-                rect.ContextMenu = contextMenu;
-                rect.MouseLeftButtonUp += async (s, e) =>
-                {
+                    // Context menu (same as before)
+                    var contextMenu = new System.Windows.Controls.ContextMenu();
+                    var askAiMenu = new MenuItem { Header = "Ask AI" };
+                    askAiMenu.Click += (s, e) => AskAI(child);
                     if (child.IsFolder)
                     {
-                        _loadingCts?.Cancel();
-                        _loadingCts = new CancellationTokenSource();
-                        ScanningPanel.Visibility = Visibility.Visible;
-                        _progressStopwatch.Restart();
-                        if (child.Children == null || child.Children.Count == 0)
-                        {
-                            var progress = new Progress<StorageItem>(item =>
-                            {
-                                if (_progressStopwatch.ElapsedMilliseconds > 2000)
-                                {
-                                    DrawTreemap(child);
-                                    _progressStopwatch.Restart();
-                                }
-                            });
-                            await Task.Run(() => StorageItem.BuildFromDirectory(child.FullPath, progress, child), _loadingCts.Token);
-                        }
-                        ScanningPanel.Visibility = Visibility.Collapsed;
-                        _backStack.Push(_currentViewRoot);
-                        _currentViewRoot = child;
-                        _forwardStack.Clear();
-                        BackButton.Visibility = Visibility.Visible;
-                        UpdateBreadcrumbBar(child);
-                        DrawTreemap(child);
+                        var deleteFolder = new MenuItem { Header = "Delete Folder" };
+                        deleteFolder.Click += (s, e) => DeleteFolder(child);
+                        var openInExplorer = new MenuItem { Header = "Open in File Explorer" };
+                        openInExplorer.Click += (s, e) => OpenInExplorer(child.FullPath);
+                        contextMenu.Items.Add(openInExplorer);
+                        contextMenu.Items.Add(askAiMenu);
+                        contextMenu.Items.Add(deleteFolder);
                     }
-                };
+                    else
+                    {
+                        var deleteFile = new MenuItem { Header = "Delete File" };
+                        deleteFile.Click += (s, e) => DeleteFile(child);
+                        var openFolder = new MenuItem { Header = "Open in File Explorer" };
+                        openFolder.Click += (s, e) => OpenInExplorer(System.IO.Path.GetDirectoryName(child.FullPath));
+                        var openFile = new MenuItem { Header = "Open File" };
+                        openFile.Click += (s, e) => OpenFile(child.FullPath);
+                        contextMenu.Items.Add(openFile);
+                        contextMenu.Items.Add(openFolder);
+                        contextMenu.Items.Add(askAiMenu);
+                        contextMenu.Items.Add(deleteFile);
+                    }
+                    rect.ContextMenu = contextMenu;
+                    // Only attach zoom for folders
+                    if (child.IsFolder)
+                    {
+                        rect.MouseLeftButtonUp += async (s, e) =>
+                        {
+                            _loadingCts?.Cancel();
+                            _loadingCts = new CancellationTokenSource();
+                            ScanningPanel.Visibility = Visibility.Visible;
+                            _progressStopwatch.Restart();
+                            if (child.Children == null || child.Children.Count == 0)
+                            {
+                                var progress = new Progress<StorageItem>(item =>
+                                {
+                                    if (_progressStopwatch.ElapsedMilliseconds > 2000)
+                                    {
+                                        DrawTreemap(child);
+                                        _progressStopwatch.Restart();
+                                    }
+                                });
+                                await Task.Run(() => StorageItem.BuildFromDirectory(child.FullPath, progress, child), _loadingCts.Token);
+                            }
+                            ScanningPanel.Visibility = Visibility.Collapsed;
+                            _backStack.Push(_currentViewRoot);
+                            _currentViewRoot = child;
+                            _forwardStack.Clear();
+                            BackButton.Visibility = Visibility.Visible;
+                            UpdateBreadcrumbBar(child);
+                            DrawTreemap(child);
+                        };
+                    }
+                }
                 TreemapCanvas.Children.Add(rect);
                 Canvas.SetLeft(rect, r.X);
                 Canvas.SetTop(rect, r.Y);
@@ -401,9 +432,9 @@ namespace SpaceFindr
                 double medLabelSize = 80;
                 string labelText = null;
                 if (r.Width > medLabelSize && r.Height > minLabelSize)
-                    labelText = $"{child.Name}\n{FormatSize(child.Size)}";
+                    labelText = isFreeSpaceRect ? $"Free space\n{FormatSize(child.Size)}" : $"{child.Name}\n{FormatSize(child.Size)}";
                 else if (r.Width > minLabelSize && r.Height > minLabelSize)
-                    labelText = child.Name;
+                    labelText = isFreeSpaceRect ? "Free space" : child.Name;
                 if (!string.IsNullOrEmpty(labelText))
                 {
                     var label = new TextBlock
