@@ -52,6 +52,11 @@
                         </ListView>
                     </Border>
                 </TabItem>
+                <TabItem Header="Settings">
+                    <StackPanel Margin="16">
+                        <CheckBox x:Name="ShowFreeSpaceCheckBox" Content="Show free space on drives" IsChecked="True" Checked="ShowFreeSpaceCheckBox_Checked" Unchecked="ShowFreeSpaceCheckBox_Unchecked" />
+                    </StackPanel>
+                </TabItem>
             </TabControl>
         </Grid>
         <StatusBar Grid.Row="3" Height="28" VerticalAlignment="Bottom">

@@ -34,6 +34,8 @@ namespace SpaceFindr
 
         private DateTime _lastFooterUpdate = DateTime.MinValue;
 
+        private bool _showFreeSpace = true;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -349,16 +351,29 @@ namespace SpaceFindr
             NavigateBack();
         }
 
+        private void ShowFreeSpaceCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _showFreeSpace = true;
+            if (_currentViewRoot != null)
+                DrawTreemap(_currentViewRoot);
+        }
+
+        private void ShowFreeSpaceCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _showFreeSpace = false;
+            if (_currentViewRoot != null)
+                DrawTreemap(_currentViewRoot);
+        }
+
         private void DrawTreemap(StorageItem root)
         {
             TreemapCanvas.Children.Clear();
             if (root == null || root.Children == null || root.Children.Count == 0) return;
 
-            // If root is a drive, add a synthetic StorageItem for free space
             string driveRoot = System.IO.Path.GetPathRoot(root.FullPath);
             var children = root.Children.ToList();
             bool isDriveRoot = string.Equals(root.FullPath, driveRoot, StringComparison.OrdinalIgnoreCase);
-            if (isDriveRoot)
+            if (isDriveRoot && _showFreeSpace)
             {
                 try
                 {
