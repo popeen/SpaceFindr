@@ -221,6 +221,8 @@ namespace SpaceFindr
 
                 // Context menu
                 var contextMenu = new System.Windows.Controls.ContextMenu();
+                var askAiMenu = new MenuItem { Header = "Ask AI" };
+                askAiMenu.Click += (s, e) => AskAI(child);
                 if (child.IsFolder)
                 {
                     var deleteFolder = new MenuItem { Header = "Delete Folder" };
@@ -228,6 +230,7 @@ namespace SpaceFindr
                     var openInExplorer = new MenuItem { Header = "Open in File Explorer" };
                     openInExplorer.Click += (s, e) => OpenInExplorer(child.FullPath);
                     contextMenu.Items.Add(openInExplorer);
+                    contextMenu.Items.Add(askAiMenu);
                     contextMenu.Items.Add(deleteFolder);
                 }
                 else
@@ -240,6 +243,7 @@ namespace SpaceFindr
                     openFile.Click += (s, e) => OpenFile(child.FullPath);
                     contextMenu.Items.Add(openFile);
                     contextMenu.Items.Add(openFolder);
+                    contextMenu.Items.Add(askAiMenu);
                     contextMenu.Items.Add(deleteFile);
                 }
                 rect.ContextMenu = contextMenu;
@@ -420,6 +424,22 @@ namespace SpaceFindr
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show(ex.Message, "Error");
+            }
+        }
+
+        private void AskAI(StorageItem item)
+        {
+            string type = item.IsFolder ? "folder" : "file";
+            string query = $"What is this {type}? Is it safe to remove?\n{item.FullPath}";
+            string urlSafeQuery = System.Net.WebUtility.UrlEncode(query);
+            string url = $"https://www.google.com/search?q={urlSafeQuery}&udm=50";
+            try
+            {
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to open browser: {ex.Message}", "Error");
             }
         }
     }
