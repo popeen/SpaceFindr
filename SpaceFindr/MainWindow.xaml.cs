@@ -16,6 +16,8 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Windows.Navigation;
+using System.Text.Json;
+using System.Net.Http;
 // Only use the specific type from System.Windows.Forms when needed
 
 namespace SpaceFindr
@@ -35,6 +37,7 @@ namespace SpaceFindr
         private DateTime _lastFooterUpdate = DateTime.MinValue;
 
         private bool _showFreeSpace = true;
+        private bool _checkUpdatesOnStart = true;
 
         public MainWindow()
         {
@@ -43,6 +46,49 @@ namespace SpaceFindr
             this.Title = $"SpaceFindr ALPHA v.{version}";
             this.PreviewMouseDown += MainWindow_PreviewMouseDown;
             UpdateDriveUsage(null); // Load all drives on startup
+            if (_checkUpdatesOnStart)
+            {
+                _ = CheckForUpdatesAsync();
+            }
+        }
+
+        private async Task CheckForUpdatesAsync()
+        {
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    string url = "https://api.github.com/repos/popeen/SpaceFindr/releases";
+                    client.DefaultRequestHeaders.Add("User-Agent", "spacefindr-updater");
+                    HttpResponseMessage response = await client.GetAsync(url);
+                    response.EnsureSuccessStatusCode();
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    using var doc = System.Text.Json.JsonDocument.Parse(jsonResponse);
+                    var root = doc.RootElement;
+                    if (root.GetArrayLength() > 0)
+                    {
+                        var latest = root[0];
+                        var latestTag = latest.GetProperty("tag_name").GetString();
+                        var releaseUrl = latest.GetProperty("html_url").GetString();
+                        Version latestVersion = null;
+                        Version currentVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                        if (!Version.TryParse(latestTag.TrimStart('v', 'V'), out latestVersion))
+                            latestVersion = new Version(latestTag.TrimStart('v', 'V'));
+                        if (latestVersion > currentVersion)
+                        {
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                var dlg = new UpdateDialog(latestTag, releaseUrl) { Owner = this };
+                                dlg.ShowDialog();
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Optionally log or ignore update errors
+            }
         }
 
         private void MainWindow_PreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -363,6 +409,16 @@ namespace SpaceFindr
             _showFreeSpace = false;
             if (_currentViewRoot != null)
                 DrawTreemap(_currentViewRoot);
+        }
+
+        private void CheckUpdatesOnStartCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _checkUpdatesOnStart = true;
+        }
+
+        private void CheckUpdatesOnStartCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _checkUpdatesOnStart = false;
         }
 
         private void DrawTreemap(StorageItem root)
