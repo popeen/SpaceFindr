@@ -26,15 +26,45 @@
                 <StackPanel x:Name="BreadcrumbPanel" Orientation="Horizontal" VerticalAlignment="Center" Height="40" />
             </StackPanel>
         </Grid>
-        <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" CornerRadius="6">
-            <Canvas x:Name="TreemapCanvas" Background="#FAFAFA"/>
-        </Border>
+        <Grid Grid.Row="2">
+            <TabControl x:Name="MainTabControl" SelectionChanged="MainTabControl_SelectionChanged">
+                <TabItem Header="Treemap">
+                    <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="6">
+                        <Canvas x:Name="TreemapCanvas" Background="#FAFAFA"/>
+                    </Border>
+                </TabItem>
+                <TabItem Header="Largest Files">
+                    <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="6">
+                        <ListView x:Name="FilesListView" Margin="0" FontFamily="Consolas" FontSize="13">
+                            <ListView.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Open" Click="File_Open_Click" />
+                                    <MenuItem Header="Ask AI" Click="File_AskAI_Click" />
+                                    <MenuItem Header="Delete" Click="File_Delete_Click" />
+                                </ContextMenu>
+                            </ListView.ContextMenu>
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="File Path" DisplayMemberBinding="{Binding FullPath}" Width="350"/>
+                                    <GridViewColumn Header="Size" DisplayMemberBinding="{Binding SizeDisplay}" Width="100"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </Border>
+                </TabItem>
+            </TabControl>
+        </Grid>
         <StatusBar Grid.Row="3" Height="28" VerticalAlignment="Bottom">
             <StatusBarItem>
                 <TextBlock x:Name="CurrentFolderText" Text="Current folder: " />
             </StatusBarItem>
             <StatusBarItem>
                 <TextBlock x:Name="FolderFileCountText" Text="Items: 0 folders, 0 files" />
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock>
+                    <Hyperlink NavigateUri="https://popeen.com" RequestNavigate="Hyperlink_RequestNavigate">popeen.com</Hyperlink>
+                </TextBlock>
             </StatusBarItem>
         </StatusBar>
     </Grid>

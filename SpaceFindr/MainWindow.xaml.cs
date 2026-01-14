@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Windows.Navigation;
 // Only use the specific type from System.Windows.Forms when needed
 
 namespace SpaceFindr
@@ -153,6 +154,7 @@ namespace SpaceFindr
                                 if (_progressStopwatch.ElapsedMilliseconds > 2000)
                                 {
                                     DrawTreemap(_treeRoot);
+                                    UpdateFilesListView(); // Throttle file list updates to match treemap
                                     _progressStopwatch.Restart();
                                 }
                                 UpdateFooter(item);
@@ -212,6 +214,7 @@ namespace SpaceFindr
                                 if (_progressStopwatch.ElapsedMilliseconds > 2000)
                                 {
                                     DrawTreemap(_treeRoot);
+                                    UpdateFilesListView(); // Throttle file list updates to match treemap
                                     _progressStopwatch.Restart();
                                 }
                                 UpdateFooter(item);
@@ -263,9 +266,10 @@ namespace SpaceFindr
                             if (_progressStopwatch.ElapsedMilliseconds > 2000)
                             {
                                 DrawTreemap(_treeRoot);
+                                UpdateFilesListView(); // Throttle file list updates to match treemap
                                 _progressStopwatch.Restart();
                             }
-                            });
+                        });
                     });
 
                     // Run scan on background thread
@@ -584,7 +588,7 @@ namespace SpaceFindr
                     string unc = label;
                     if (string.IsNullOrWhiteSpace(unc))
                         unc = drive.RootDirectory.FullName.TrimEnd('/');
-                    if(unc.Substring(0, 2) == driveLetter)
+                    if (unc.Substring(0, 2) == driveLetter)
                         unc = "Network Drive";
                     driveDisplay = $"{unc} ({driveLetter})";
                 }
@@ -644,5 +648,127 @@ namespace SpaceFindr
                 DrivesPanel.Children.Add(panel);
             }
         }
+
+        private void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (MainTabControl.SelectedIndex == 1) // Largest Files tab
+            {
+                UpdateFilesListView();
+            }
+        }
+
+        private void UpdateFilesListView()
+        {
+            if (_treeRoot == null) return;
+            var allFiles = new List<StorageItem>();
+            CollectFiles(_treeRoot, allFiles);
+            var largestFiles = allFiles.OrderByDescending(f => f.Size)
+                .Take(100)
+                .Select(f => new { f.FullPath, SizeDisplay = FormatSize(f.Size) })
+                .ToList();
+            FilesListView.ItemsSource = largestFiles;
+        }
+
+        private void CollectFiles(StorageItem item, List<StorageItem> files)
+        {
+            if (item == null) return;
+            if (!item.IsFolder)
+            {
+                files.Add(item);
+            }
+            else if (item.Children != null)
+            {
+                foreach (var child in item.Children)
+                {
+                    CollectFiles(child, files);
+                }
+            }
+        }
+
+        private void File_Open_Click(object sender, RoutedEventArgs e)
+        {
+            var file = FilesListView.SelectedItem;
+            if (file != null)
+            {
+                var pathProp = file.GetType().GetProperty("FullPath");
+                if (pathProp != null)
+                {
+                    string path = pathProp.GetValue(file) as string;
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        try
+                        {
+                            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show(ex.Message, "Error");
+                        }
+                    }
+                }
+            }
+        }
+
+        private void File_AskAI_Click(object sender, RoutedEventArgs e)
+        {
+            var file = FilesListView.SelectedItem;
+            if (file != null)
+            {
+                var pathProp = file.GetType().GetProperty("FullPath");
+                if (pathProp != null)
+                {
+                    string path = pathProp.GetValue(file) as string;
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        string query = $"What is this file? Is it safe to remove?\n{path}";
+                        string urlSafeQuery = System.Net.WebUtility.UrlEncode(query);
+                        string url = $"https://www.google.com/search?q={urlSafeQuery}&udm=50";
+                        try
+                        {
+                            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Failed to open browser: {ex.Message}", "Error");
+                        }
+                    }
+                }
+            }
+        }
+
+        private void File_Delete_Click(object sender, RoutedEventArgs e)
+        {
+            var file = FilesListView.SelectedItem;
+            if (file != null)
+            {
+                var pathProp = file.GetType().GetProperty("FullPath");
+                if (pathProp != null)
+                {
+                    string path = pathProp.GetValue(file) as string;
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        if (MessageBox.Show($"Are you sure you want to delete the file '{path}'?", "Confirm Delete", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                        {
+                            try
+                            {
+                                File.Delete(path);
+                                UpdateFilesListView();
+                            }
+                            catch (Exception ex)
+                            {
+                                MessageBox.Show(ex.Message, "Error");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+            e.Handled = true;
+        }
+
     }
 }
