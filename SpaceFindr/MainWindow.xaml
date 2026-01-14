@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SpaceFindr"
         mc:Ignorable="d"
-        Title="SpaceFindr ALFA" Height="900" Width="1600"
+        Title="SpaceFindr ALPHA" Height="900" Width="1600"
         SizeChanged="Window_SizeChanged">
     <Grid Margin="20">
         <Grid.RowDefinitions>
