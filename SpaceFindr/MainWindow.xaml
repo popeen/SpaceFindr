@@ -19,10 +19,6 @@
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Button x:Name="BrowseButton" Content="Browse Folder" Width="150" Height="40" Margin="0,0,10,0" Click="BrowseButton_Click"/>
                 <Button x:Name="BackButton" Content="Back" Width="80" Height="40" Margin="0,0,10,0" Click="BackButton_Click" Visibility="Collapsed"/>
-                <StackPanel Orientation="Horizontal" x:Name="ScanningPanel" Margin="10,0,0,0" Visibility="Collapsed">
-                    <ProgressBar IsIndeterminate="True" Width="32" Height="32" Margin="0,0,8,0"/>
-                    <Label Content="Scanning..." VerticalAlignment="Center"/>
-                </StackPanel>
                 <StackPanel x:Name="BreadcrumbPanel" Orientation="Horizontal" VerticalAlignment="Center" Height="40" />
             </StackPanel>
         </Grid>
@@ -125,7 +121,7 @@
         </Grid>
         <StatusBar Grid.Row="3" Height="28" VerticalAlignment="Bottom">
             <StatusBarItem>
-                <TextBlock x:Name="CurrentFolderText" Text="Current folder: " />
+                <local:Spinner x:Name="ScanningSpinner" Visibility="Collapsed" Margin="0,0,8,0" />
             </StatusBarItem>
             <StatusBarItem>
                 <TextBlock x:Name="FolderFileCountText" Text="Items: 0 folders, 0 files" />

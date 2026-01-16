@@ -175,29 +175,25 @@ namespace SpaceFindr
         {
             if (folder == null)
             {
-                CurrentFolderText.Text = "Current folder: ";
-                FolderFileCountText.Text = "Items: 0 folders, 0 files";
+                FolderFileCountText.Text = "";
                 return;
             }
-            // Show the path currently being scanned if a scan is in progress
-            if (ScanningPanel.Visibility == Visibility.Visible)
+            if (ScanningSpinner.Visibility == Visibility.Visible)
             {
-                CurrentFolderText.Text = $"Scanning: {folder.FullPath}";
+                FolderFileCountText.Text = $"Scanning: {folder.FullPath}";
             }
             else
             {
-                var current = _currentViewRoot ?? folder;
-                CurrentFolderText.Text = $"Current folder: {current.FullPath}";
+                var children = folder.Children ?? (_currentViewRoot?.Children);
+                if (children == null)
+                {
+                    FolderFileCountText.Text = "Items: 0 folders, 0 files";
+                    return;
+                }
+                int folderCount = children.Count(x => x != null && x.IsFolder);
+                int fileCount = children.Count(x => x != null && !x.IsFolder);
+                FolderFileCountText.Text = $"Items: {folderCount} folders, {fileCount} files";
             }
-            var children = folder.Children ?? (_currentViewRoot?.Children);
-            if (children == null)
-            {
-                FolderFileCountText.Text = "Items: 0 folders, 0 files";
-                return;
-            }
-            int folderCount = children.Count(x => x != null && x.IsFolder);
-            int fileCount = children.Count(x => x != null && !x.IsFolder);
-            FolderFileCountText.Text = $"Items: {folderCount} folders, {fileCount} files";
         }
 
         private void UpdateBreadcrumbBar(StorageItem current)
@@ -251,7 +247,7 @@ namespace SpaceFindr
                     else
                     {
                         // Scan as before
-                        ScanningPanel.Visibility = Visibility.Visible;
+                        ScanningSpinner.Visibility = Visibility.Visible;
                         TreemapCanvas.Children.Clear();
                         _treeRoot = new StorageItem { Name = System.IO.Path.GetFileName(targetPath), FullPath = targetPath, IsFolder = true };
                         _currentViewRoot = _treeRoot;
@@ -270,7 +266,8 @@ namespace SpaceFindr
                             });
                         });
                         var root = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(targetPath, progress, _treeRoot, null, _ignoreReparsePoints));
-                        ScanningPanel.Visibility = Visibility.Collapsed;
+                        // Final UI update after scan
+                        ScanningSpinner.Visibility = Visibility.Collapsed;
                         _treeRoot = root;
                         _currentViewRoot = root;
                         UpdateBreadcrumbBar(root);
@@ -336,7 +333,7 @@ namespace SpaceFindr
                     else
                     {
                         // Scan as before
-                        ScanningPanel.Visibility = Visibility.Visible;
+                        ScanningSpinner.Visibility = Visibility.Visible;
                         TreemapCanvas.Children.Clear();
                         _treeRoot = new StorageItem { Name = System.IO.Path.GetFileName(targetPath), FullPath = targetPath, IsFolder = true };
                         _currentViewRoot = _treeRoot;
@@ -355,7 +352,8 @@ namespace SpaceFindr
                             });
                         });
                         var rootItem = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(targetPath, progress, _treeRoot, null, _ignoreReparsePoints));
-                        ScanningPanel.Visibility = Visibility.Collapsed;
+                        // Final UI update after scan
+                        ScanningSpinner.Visibility = Visibility.Collapsed;
                         _treeRoot = rootItem;
                         _currentViewRoot = rootItem;
                         UpdateBreadcrumbBar(rootItem);
@@ -387,7 +385,6 @@ namespace SpaceFindr
                 if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     string selectedPath = dialog.SelectedPath;
-                    ScanningPanel.Visibility = Visibility.Visible;
                     TreemapCanvas.Children.Clear();
                     _treeRoot = new StorageItem { Name = selectedPath, FullPath = selectedPath, IsFolder = true };
                     _currentViewRoot = _treeRoot;
@@ -408,9 +405,8 @@ namespace SpaceFindr
 
                     // Run scan on background thread
                     var root = await Task.Run(() => StorageItem.BuildFromDirectory(selectedPath, progress, _treeRoot, null, _ignoreReparsePoints), _loadingCts.Token);
-
                     // Final UI update after scan
-                    ScanningPanel.Visibility = Visibility.Collapsed;
+                    ScanningSpinner.Visibility = Visibility.Collapsed;
                     _treeRoot = root;
                     _currentViewRoot = root;
                     UpdateBreadcrumbBar(root);
@@ -573,7 +569,6 @@ namespace SpaceFindr
                         {
                             _loadingCts?.Cancel();
                             _loadingCts = new CancellationTokenSource();
-                            ScanningPanel.Visibility = Visibility.Visible;
                             _progressStopwatch.Restart();
                             if (child.Children == null || child.Children.Count == 0)
                             {
@@ -587,7 +582,7 @@ namespace SpaceFindr
                                 });
                                 await Task.Run(() => StorageItem.BuildFromDirectory(child.FullPath, progress, child, null, _ignoreReparsePoints), _loadingCts.Token);
                             }
-                            ScanningPanel.Visibility = Visibility.Collapsed;
+                            ScanningSpinner.Visibility = Visibility.Collapsed;
                             _backStack.Push(_currentViewRoot);
                             _currentViewRoot = child;
                             _forwardStack.Clear();
@@ -821,7 +816,7 @@ namespace SpaceFindr
                 panel.Children.Add(freeText);
                 panel.MouseLeftButtonUp += async (s, e) =>
                 {
-                    ScanningPanel.Visibility = Visibility.Visible;
+                    ScanningSpinner.Visibility = Visibility.Visible;
                     await System.Threading.Tasks.Task.Yield(); // Force UI update
                     TreemapCanvas.Children.Clear();
                     _treeRoot = new StorageItem { Name = driveDisplay, FullPath = root, IsFolder = true };
@@ -841,7 +836,7 @@ namespace SpaceFindr
                         }
                     });
                     var rootItem = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(root, progress, _treeRoot, null, _ignoreReparsePoints));
-                    ScanningPanel.Visibility = Visibility.Collapsed;
+                    ScanningSpinner.Visibility = Visibility.Collapsed;
                     _treeRoot = rootItem;
                     _currentViewRoot = rootItem;
                     UpdateBreadcrumbBar(rootItem);
@@ -973,6 +968,5 @@ namespace SpaceFindr
             Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
             e.Handled = true;
         }
-
     }
 }
