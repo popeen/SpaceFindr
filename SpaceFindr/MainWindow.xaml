@@ -56,6 +56,7 @@
                     <StackPanel Margin="16">
                         <CheckBox x:Name="ShowFreeSpaceCheckBox" Content="Show free space on drives" IsChecked="True" Checked="ShowFreeSpaceCheckBox_Checked" Unchecked="ShowFreeSpaceCheckBox_Unchecked" />
                         <CheckBox x:Name="CheckUpdatesOnStartCheckBox" Content="Check for updates on start" IsChecked="True" Checked="CheckUpdatesOnStartCheckBox_Checked" Unchecked="CheckUpdatesOnStartCheckBox_Unchecked" Margin="0,12,0,0" />
+                        <CheckBox x:Name="IgnoreReparsePointsCheckBox" Content="Ignore reparse-point-based links (symbolic links, junctions, cloud files etc.)" IsChecked="True" Checked="IgnoreReparsePointsCheckBox_Checked" Unchecked="IgnoreReparsePointsCheckBox_Unchecked" Margin="0,12,0,0" />
                     </StackPanel>
                 </TabItem>
             </TabControl>

@@ -1,5 +1,8 @@
 using System.IO;
 using System.Windows;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace SpaceFindr
 {
@@ -68,20 +71,13 @@ namespace SpaceFindr
         public StorageItem Parent { get; set; }
         public bool IsLoaded { get; set; } // True if children have been loaded
 
-        private static bool ShouldSkipFile(FileInfo file)
+        private static bool ShouldSkipFile(FileInfo file, bool ignoreReparsePoints = true)
         {
             try
             {
                 var attrs = file.Attributes;
                 // Skip cloud/placeholder files (reparse points, offline, temporary, sparse, etc.)
-                if ((attrs & FileAttributes.ReparsePoint) != 0 ||
-                    (attrs & FileAttributes.Offline) != 0 ||
-                    (attrs & FileAttributes.Temporary) != 0 ||
-                    (attrs & FileAttributes.SparseFile) != 0)
-                    return true;
-                // Skip Nextcloud and other cloud placeholder files by extension
-                string ext = file.Extension.ToLowerInvariant();
-                if (ext == ".nextcloud" || ext == ".cloud" || ext == ".cloudf")
+                if (ignoreReparsePoints && (attrs & FileAttributes.ReparsePoint) != 0)
                     return true;
                 // Skip zero-length files
                 if (file.Length == 0)
@@ -91,11 +87,23 @@ namespace SpaceFindr
             return false;
         }
 
-        public static StorageItem BuildFromDirectory(string path, IProgress<StorageItem> progress = null, StorageItem rootRef = null, StorageItem parent = null)
+        private static bool ShouldSkipDirectory(DirectoryInfo directory, bool ignoreReparsePoints = true)
+        {
+            try
+            {
+                var attrs = directory.Attributes;
+                // Skip reparse point directories (symbolic links, junctions, etc.) if configured to do so
+                if (ignoreReparsePoints && (attrs & FileAttributes.ReparsePoint) != 0)
+                    return true;
+            }
+            catch { return true; }
+            return false;
+        }
+
+        public static StorageItem BuildFromDirectory(string path, IProgress<StorageItem> progress = null, StorageItem rootRef = null, StorageItem parent = null, bool ignoreReparsePoints = true)
         {
             var dirInfo = new DirectoryInfo(path);
-            // Skip any folder named Nextcloud TODO, find a better way to handle this
-            if (dirInfo.Name.Equals("Nextcloud", StringComparison.OrdinalIgnoreCase))
+            if (ShouldSkipDirectory(dirInfo, ignoreReparsePoints))
                 return null;
             var root = rootRef ?? new StorageItem
             {
@@ -110,7 +118,9 @@ namespace SpaceFindr
             {
                 foreach (var dir in dirInfo.GetDirectories())
                 {
-                    var child = BuildFromDirectory(dir.FullName, progress, null, root);
+                    if (ShouldSkipDirectory(dir, ignoreReparsePoints))
+                        continue;
+                    var child = BuildFromDirectory(dir.FullName, progress, null, root, ignoreReparsePoints);
                     if (child == null) continue;
                     root.Children.Add(child);
                     totalSize += child.Size;
@@ -122,7 +132,7 @@ namespace SpaceFindr
                 }
                 foreach (var file in dirInfo.GetFiles())
                 {
-                    if (ShouldSkipFile(file))
+                    if (ShouldSkipFile(file, ignoreReparsePoints))
                         continue;
                     var fileItem = new StorageItem
                     {
@@ -147,12 +157,11 @@ namespace SpaceFindr
             return root;
         }
 
-        public static StorageItem LoadChildren(StorageItem item)
+        public static StorageItem LoadChildren(StorageItem item, bool ignoreReparsePoints = true)
         {
             if (!item.IsFolder || item.IsLoaded) return item;
             var dirInfo = new DirectoryInfo(item.FullPath);
-            // Skip any folder named Nextcloud TODO, find a better way to handle this
-            if (dirInfo.Name.Equals("Nextcloud", StringComparison.OrdinalIgnoreCase))
+            if (ShouldSkipDirectory(dirInfo, ignoreReparsePoints))
                 return item;
             try
             {
@@ -160,7 +169,7 @@ namespace SpaceFindr
                 long totalSize = 0;
                 foreach (var dir in dirInfo.GetDirectories())
                 {
-                    if (dir.Name.Equals("Nextcloud", StringComparison.OrdinalIgnoreCase))
+                    if (ShouldSkipDirectory(dir, ignoreReparsePoints))
                         continue;
                     var child = new StorageItem
                     {
@@ -170,13 +179,13 @@ namespace SpaceFindr
                         Parent = item,
                         Size = 0
                     };
-                    LoadChildren(child);
+                    LoadChildren(child, ignoreReparsePoints);
                     item.Children.Add(child);
                     totalSize += child.Size;
                 }
                 foreach (var file in dirInfo.GetFiles())
                 {
-                    if (ShouldSkipFile(file))
+                    if (ShouldSkipFile(file, ignoreReparsePoints))
                         continue;
                     var fileItem = new StorageItem
                     {

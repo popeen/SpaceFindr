@@ -38,9 +38,11 @@ namespace SpaceFindr
 
         private bool _showFreeSpace = true;
         private bool _checkUpdatesOnStart = true;
+        private bool _ignoreReparsePoints = true;
         private const string RegistryPath = @"Software\\Popeen\\SpaceFindr";
         private const string ShowFreeSpaceKey = "ShowFreeSpace";
         private const string CheckUpdatesKey = "CheckUpdatesOnStart";
+        private const string IgnoreReparsePointsKey = "IgnoreReparsePoints";
         private bool _isInitializing = true;
 
         public MainWindow()
@@ -49,6 +51,7 @@ namespace SpaceFindr
             LoadSettingsFromRegistry();
             ShowFreeSpaceCheckBox.IsChecked = _showFreeSpace;
             CheckUpdatesOnStartCheckBox.IsChecked = _checkUpdatesOnStart;
+            IgnoreReparsePointsCheckBox.IsChecked = _ignoreReparsePoints;
             _isInitializing = false;
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
             this.Title = $"SpaceFindr ALPHA v.{version}";
@@ -68,6 +71,7 @@ namespace SpaceFindr
                 {
                     _showFreeSpace = Convert.ToBoolean(key.GetValue(ShowFreeSpaceKey, true));
                     _checkUpdatesOnStart = Convert.ToBoolean(key.GetValue(CheckUpdatesKey, true));
+                    _ignoreReparsePoints = Convert.ToBoolean(key.GetValue(IgnoreReparsePointsKey, true));
                 }
             }
         }
@@ -78,6 +82,7 @@ namespace SpaceFindr
             {
                 key.SetValue(ShowFreeSpaceKey, _showFreeSpace);
                 key.SetValue(CheckUpdatesKey, _checkUpdatesOnStart);
+                key.SetValue(IgnoreReparsePointsKey, _ignoreReparsePoints);
             }
         }
 
@@ -264,7 +269,7 @@ namespace SpaceFindr
                                 UpdateFooter(item);
                             });
                         });
-                        var root = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(targetPath, progress, _treeRoot));
+                        var root = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(targetPath, progress, _treeRoot, null, _ignoreReparsePoints));
                         ScanningPanel.Visibility = Visibility.Collapsed;
                         _treeRoot = root;
                         _currentViewRoot = root;
@@ -349,7 +354,7 @@ namespace SpaceFindr
                                 UpdateFooter(item);
                             });
                         });
-                        var rootItem = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(targetPath, progress, _treeRoot));
+                        var rootItem = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(targetPath, progress, _treeRoot, null, _ignoreReparsePoints));
                         ScanningPanel.Visibility = Visibility.Collapsed;
                         _treeRoot = rootItem;
                         _currentViewRoot = rootItem;
@@ -402,7 +407,7 @@ namespace SpaceFindr
                     });
 
                     // Run scan on background thread
-                    var root = await Task.Run(() => StorageItem.BuildFromDirectory(selectedPath, progress, _treeRoot), _loadingCts.Token);
+                    var root = await Task.Run(() => StorageItem.BuildFromDirectory(selectedPath, progress, _treeRoot, null, _ignoreReparsePoints), _loadingCts.Token);
 
                     // Final UI update after scan
                     ScanningPanel.Visibility = Visibility.Collapsed;
@@ -451,6 +456,18 @@ namespace SpaceFindr
         private void CheckUpdatesOnStartCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             _checkUpdatesOnStart = false;
+            if (!_isInitializing) SaveSettingsToRegistry();
+        }
+
+        private void IgnoreReparsePointsCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _ignoreReparsePoints = true;
+            if (!_isInitializing) SaveSettingsToRegistry();
+        }
+
+        private void IgnoreReparsePointsCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _ignoreReparsePoints = false;
             if (!_isInitializing) SaveSettingsToRegistry();
         }
 
@@ -568,7 +585,7 @@ namespace SpaceFindr
                                         _progressStopwatch.Restart();
                                     }
                                 });
-                                await Task.Run(() => StorageItem.BuildFromDirectory(child.FullPath, progress, child), _loadingCts.Token);
+                                await Task.Run(() => StorageItem.BuildFromDirectory(child.FullPath, progress, child, null, _ignoreReparsePoints), _loadingCts.Token);
                             }
                             ScanningPanel.Visibility = Visibility.Collapsed;
                             _backStack.Push(_currentViewRoot);
@@ -641,7 +658,7 @@ namespace SpaceFindr
                     {
                         var fileInfo = new FileInfo(child.FullPath);
                         var attrs = fileInfo.Attributes;
-                        if ((attrs & System.IO.FileAttributes.ReparsePoint) != 0 ||
+                        if ((_ignoreReparsePoints && (attrs & System.IO.FileAttributes.ReparsePoint) != 0) ||
                             (attrs & System.IO.FileAttributes.Offline) != 0 ||
                             (attrs & System.IO.FileAttributes.Temporary) != 0)
                             continue;
@@ -823,7 +840,7 @@ namespace SpaceFindr
                             });
                         }
                     });
-                    var rootItem = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(root, progress, _treeRoot));
+                    var rootItem = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(root, progress, _treeRoot, null, _ignoreReparsePoints));
                     ScanningPanel.Visibility = Visibility.Collapsed;
                     _treeRoot = rootItem;
                     _currentViewRoot = rootItem;
