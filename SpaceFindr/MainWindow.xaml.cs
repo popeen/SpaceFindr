@@ -69,7 +69,7 @@ namespace SpaceFindr
             IgnoreReparsePointsCheckBox.IsChecked = _ignoreReparsePoints;
             _isInitializing = false;
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
-            this.Title = $"SpaceFindr ALPHA v.{version}";
+            this.Title = $"SpaceFindr BETA v.{version}";
             this.PreviewMouseDown += MainWindow_PreviewMouseDown;
             this.Deactivated += MainWindow_Deactivated;
             this.PreviewKeyDown += MainWindow_PreviewKeyDown;
