@@ -837,6 +837,7 @@ namespace SpaceFindr
                 double percentFree = total > 0 ? (free / total) * 100 : 0;
 
                 var panel = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 16, 10), Width = 180, Cursor = System.Windows.Input.Cursors.Hand };
+                panel.ToolTip = $"Select {driveLetter} ( Ctrl+Alt+{driveLetter[0]} )";
                 var nameText = new TextBlock { Text = driveDisplay, FontWeight = FontWeights.Normal, FontSize = 13, Margin = new Thickness(0, 0, 0, 2) };
                 var bar = new ProgressBar { Width = 180, Height = 18, Minimum = 0, Maximum = 100, Value = percent };
                 bar.Foreground = percentFree < 10 ? Brushes.Red : Brushes.DodgerBlue;
