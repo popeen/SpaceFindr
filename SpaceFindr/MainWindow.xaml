@@ -7,6 +7,32 @@
         mc:Ignorable="d"
         Title="SpaceFindr ALPHA" Height="900" Width="1600"
         SizeChanged="Window_SizeChanged">
+    <Window.Resources>
+        <Style x:Key="BreadcrumbButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E0E7F8"/>
+                                <Setter Property="BorderBrush" Value="#B4C7E7"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="#3399FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -18,8 +44,14 @@
         <Grid Grid.Row="1" Margin="0,0,0,10">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Button x:Name="BrowseButton" Content="Browse Folder" Width="150" Height="40" Margin="0,0,10,0" Click="BrowseButton_Click"/>
-                <Button x:Name="BackButton" Content="Back" Width="80" Height="40" Margin="0,0,10,0" Click="BackButton_Click" Visibility="Collapsed"/>
-                <StackPanel x:Name="BreadcrumbPanel" Orientation="Horizontal" VerticalAlignment="Center" Height="40" />
+                <Border x:Name="BreadcrumbBarBorder" Background="#F5F5F5" Padding="8,0" Height="40" VerticalAlignment="Center"
+                        BorderBrush="#B4C7E7" BorderThickness="1" CornerRadius="6" MouseDown="BreadcrumbBar_MouseDown" Visibility="Collapsed">
+                    <Grid>
+                        <StackPanel x:Name="BreadcrumbPanel" Orientation="Horizontal" VerticalAlignment="Center" Height="40" HorizontalAlignment="Left" Visibility="Visible" />
+                        <TextBox x:Name="BreadcrumbPathBox" VerticalAlignment="Center" Height="28" Margin="2,0,2,0" Visibility="Collapsed"
+                                 KeyDown="BreadcrumbPathBox_KeyDown" LostFocus="BreadcrumbPathBox_LostFocus"/>
+                    </Grid>
+                </Border>
             </StackPanel>
         </Grid>
         <Grid Grid.Row="2">

@@ -45,6 +45,8 @@ namespace SpaceFindr
         private const string IgnoreReparsePointsKey = "IgnoreReparsePoints";
         private bool _isInitializing = true;
 
+        private bool _breadcrumbEditMode = false;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -148,8 +150,6 @@ namespace SpaceFindr
                 _currentViewRoot = _currentViewRoot.Parent;
                 UpdateBreadcrumbBar(_currentViewRoot);
                 DrawTreemap(_currentViewRoot);
-                if (_currentViewRoot.Parent == null)
-                    BackButton.Visibility = Visibility.Collapsed;
                 UpdateFooter(_currentViewRoot);
             }
         }
@@ -165,7 +165,6 @@ namespace SpaceFindr
                     _currentViewRoot = next;
                     UpdateBreadcrumbBar(_currentViewRoot);
                     DrawTreemap(_currentViewRoot);
-                    BackButton.Visibility = _currentViewRoot.Parent == null ? Visibility.Collapsed : Visibility.Visible;
                     UpdateFooter(_currentViewRoot);
                 }
             }
@@ -198,179 +197,85 @@ namespace SpaceFindr
 
         private void UpdateBreadcrumbBar(StorageItem current)
         {
+            BreadcrumbBarBorder.Visibility = _currentViewRoot == null ? Visibility.Collapsed : Visibility.Visible;
             BreadcrumbPanel.Children.Clear();
             if (current == null) return;
             var path = current.FullPath;
-            // Handle root (e.g. C:\)
-            if (System.IO.Path.GetPathRoot(path) == path)
-            {
-                var btn = new System.Windows.Controls.Button
-                {
-                    Content = path.TrimEnd(System.IO.Path.DirectorySeparatorChar),
-                    Margin = new Thickness(0, 0, 4, 0),
-                    Padding = new Thickness(6, 0, 6, 0),
-                    Tag = path
-                };
-                btn.Click += async (s, e) =>
-                {
-                    string targetPath = (string)btn.Tag;
-                    // Try to find an existing StorageItem for the target path
-                    StorageItem targetItem = null;
-                    if (_treeRoot != null)
-                    {
-                        // Traverse tree to find the item
-                        var stack = new Stack<StorageItem>();
-                        stack.Push(_treeRoot);
-                        while (stack.Count > 0)
-                        {
-                            var item = stack.Pop();
-                            if (item != null && string.Equals(item.FullPath, targetPath, StringComparison.OrdinalIgnoreCase))
-                            {
-                                targetItem = item;
-                                break;
-                            }
-                            if (item?.Children != null)
-                            {
-                                foreach (var child in item.Children)
-                                    stack.Push(child);
-                            }
-                        }
-                    }
-                    if (targetItem != null && targetItem.Children != null && targetItem.Children.Count > 0)
-                    {
-                        // Use cached data
-                        _currentViewRoot = targetItem;
-                        DrawTreemap(targetItem);
-                        BackButton.Visibility = targetItem.Parent == null ? Visibility.Collapsed : Visibility.Visible;
-                        UpdateFooter(targetItem);
-                    }
-                    else
-                    {
-                        // Scan as before
-                        ScanningSpinner.Visibility = Visibility.Visible;
-                        TreemapCanvas.Children.Clear();
-                        _treeRoot = new StorageItem { Name = System.IO.Path.GetFileName(targetPath), FullPath = targetPath, IsFolder = true };
-                        _currentViewRoot = _treeRoot;
-                        _progressStopwatch.Restart();
-                        var progress = new Progress<StorageItem>(item =>
-                        {
-                            Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                if (_progressStopwatch.ElapsedMilliseconds > 2000)
-                                {
-                                    DrawTreemap(_treeRoot);
-                                    UpdateFilesListView();
-                                    _progressStopwatch.Restart();
-                                }
-                                UpdateFooter(item);
-                            });
-                        });
-                        var root = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(targetPath, progress, _treeRoot, null, _ignoreReparsePoints));
-                        // Final UI update after scan
-                        ScanningSpinner.Visibility = Visibility.Collapsed;
-                        _treeRoot = root;
-                        _currentViewRoot = root;
-                        UpdateBreadcrumbBar(root);
-                        DrawTreemap(root);
-                        BackButton.Visibility = Visibility.Collapsed;
-                        UpdateFooter(root);
-                    }
-                };
-                BreadcrumbPanel.Children.Add(btn);
-                UpdateFooter(current);
-                return;
-            }
-            // Normal path
             var pathParts = path.TrimEnd(System.IO.Path.DirectorySeparatorChar).Split(System.IO.Path.DirectorySeparatorChar);
             string root = System.IO.Path.GetPathRoot(path);
             string cumulativePath = root;
+            int partIndex = 0;
             for (int i = 0; i < pathParts.Length; i++)
             {
                 string part = pathParts[i];
                 if (string.IsNullOrEmpty(part)) continue;
                 string display = (i == 0) ? root.TrimEnd(System.IO.Path.DirectorySeparatorChar) : part;
                 if (i > 0) cumulativePath = System.IO.Path.Combine(cumulativePath, part);
-                var btn = new System.Windows.Controls.Button
+                var btn = new Button
                 {
                     Content = display,
-                    Margin = new Thickness(0, 0, 4, 0),
+                    Margin = new Thickness(0, 0, 2, 0),
                     Padding = new Thickness(6, 0, 6, 0),
-                    Tag = cumulativePath
+                    Tag = cumulativePath,
+                    Style = (Style)FindResource("BreadcrumbButtonStyle"),
+                    FontWeight = (i == pathParts.Length - 1) ? FontWeights.Bold : FontWeights.Normal
                 };
                 btn.Click += async (s, e) =>
                 {
                     string targetPath = (string)btn.Tag;
-                    // Try to find an existing StorageItem for the target path
-                    StorageItem targetItem = null;
-                    if (_treeRoot != null)
+                    if (Directory.Exists(targetPath))
                     {
-                        // Traverse tree to find the item
-                        var stack = new Stack<StorageItem>();
-                        stack.Push(_treeRoot);
-                        while (stack.Count > 0)
-                        {
-                            var item = stack.Pop();
-                            if (item != null && string.Equals(item.FullPath, targetPath, StringComparison.OrdinalIgnoreCase))
-                            {
-                                targetItem = item;
-                                break;
-                            }
-                            if (item?.Children != null)
-                            {
-                                foreach (var child in item.Children)
-                                    stack.Push(child);
-                            }
-                        }
-                    }
-                    if (targetItem != null && targetItem.Children != null && targetItem.Children.Count > 0)
-                    {
-                        // Use cached data
-                        _currentViewRoot = targetItem;
-                        DrawTreemap(targetItem);
-                        BackButton.Visibility = targetItem.Parent == null ? Visibility.Collapsed : Visibility.Visible;
-                        UpdateFooter(targetItem);
-                    }
-                    else
-                    {
-                        // Scan as before
-                        ScanningSpinner.Visibility = Visibility.Visible;
-                        TreemapCanvas.Children.Clear();
-                        _treeRoot = new StorageItem { Name = System.IO.Path.GetFileName(targetPath), FullPath = targetPath, IsFolder = true };
-                        _currentViewRoot = _treeRoot;
-                        _progressStopwatch.Restart();
-                        var progress = new Progress<StorageItem>(item =>
-                        {
-                            Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                if (_progressStopwatch.ElapsedMilliseconds > 2000)
-                                {
-                                    DrawTreemap(_treeRoot);
-                                    UpdateFilesListView(); // Throttle file list updates to match treemap
-                                    _progressStopwatch.Restart();
-                                }
-                                UpdateFooter(item);
-                            });
-                        });
-                        var rootItem = await System.Threading.Tasks.Task.Run(() => StorageItem.BuildFromDirectory(targetPath, progress, _treeRoot, null, _ignoreReparsePoints));
-                        // Final UI update after scan
-                        ScanningSpinner.Visibility = Visibility.Collapsed;
-                        _treeRoot = rootItem;
-                        _currentViewRoot = rootItem;
-                        UpdateBreadcrumbBar(rootItem);
-                        DrawTreemap(rootItem);
-                        BackButton.Visibility = Visibility.Collapsed;
-                        UpdateFooter(rootItem);
+                        await NavigateToPathAsync(targetPath);
                     }
                 };
+                btn.PreviewKeyDown += BreadcrumbButton_PreviewKeyDown;
+                btn.GotFocus += (s, e) => btn.BorderBrush = Brushes.DodgerBlue;
+                btn.LostFocus += (s, e) => btn.ClearValue(Button.BorderBrushProperty);
                 BreadcrumbPanel.Children.Add(btn);
+                partIndex++;
                 if (i < pathParts.Length - 1)
                 {
-                    BreadcrumbPanel.Children.Add(new TextBlock { Text = ">", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+                    BreadcrumbPanel.Children.Add(new TextBlock { Text = ">", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 2, 0), Foreground = Brushes.Gray });
                 }
             }
-            UpdateFooter(current);
-            if (current != null)
-                UpdateDriveUsage(current.FullPath);
+        }
+
+        private void BreadcrumbButton_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            var btn = sender as Button;
+            var panel = BreadcrumbPanel;
+            int idx = panel.Children.IndexOf(btn);
+            if (e.Key == Key.Right)
+            {
+                // Move to next breadcrumb (skip separators)
+                for (int i = idx + 1; i < panel.Children.Count; i++)
+                {
+                    if (panel.Children[i] is Button nextBtn)
+                    {
+                        nextBtn.Focus();
+                        e.Handled = true;
+                        break;
+                    }
+                }
+            }
+            else if (e.Key == Key.Left)
+            {
+                // Move to previous breadcrumb (skip separators)
+                for (int i = idx - 1; i >= 0; i--)
+                {
+                    if (panel.Children[i] is Button prevBtn)
+                    {
+                        prevBtn.Focus();
+                        e.Handled = true;
+                        break;
+                    }
+                }
+            }
+            else if (e.Key == Key.Enter)
+            {
+                btn.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                e.Handled = true;
+            }
         }
 
         private async void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -411,7 +316,6 @@ namespace SpaceFindr
                     _currentViewRoot = root;
                     UpdateBreadcrumbBar(root);
                     DrawTreemap(root);
-                    BackButton.Visibility = Visibility.Collapsed;
                     UpdateFooter(root);
                 }
             }
@@ -420,11 +324,6 @@ namespace SpaceFindr
                 System.Windows.Clipboard.SetText(ex.ToString());
                 System.Windows.MessageBox.Show(ex.ToString() + "\n\n(The error has been copied to your clipboard)", "Error");
             }
-        }
-
-        private void BackButton_Click(object sender, RoutedEventArgs e)
-        {
-            NavigateBack();
         }
 
         private void ShowFreeSpaceCheckBox_Checked(object sender, RoutedEventArgs e)
@@ -586,7 +485,6 @@ namespace SpaceFindr
                             _backStack.Push(_currentViewRoot);
                             _currentViewRoot = child;
                             _forwardStack.Clear();
-                            BackButton.Visibility = Visibility.Visible;
                             UpdateBreadcrumbBar(child);
                             DrawTreemap(child);
                         };
@@ -841,7 +739,6 @@ namespace SpaceFindr
                     _currentViewRoot = rootItem;
                     UpdateBreadcrumbBar(rootItem);
                     DrawTreemap(rootItem);
-                    BackButton.Visibility = Visibility.Collapsed;
                     UpdateFooter(rootItem);
                 };
                 DrivesPanel.Children.Add(panel);
@@ -967,6 +864,96 @@ namespace SpaceFindr
         {
             Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
             e.Handled = true;
+        }
+
+        private void BreadcrumbBar_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            // Only switch to edit mode if user clicks empty space (not a child element)
+            if (e.OriginalSource == sender)
+            {
+                EnterBreadcrumbEditMode();
+            }
+        }
+
+        private void EnterBreadcrumbEditMode()
+        {
+            _breadcrumbEditMode = true;
+            BreadcrumbPanel.Visibility = Visibility.Collapsed;
+            BreadcrumbPathBox.Visibility = Visibility.Visible;
+            BreadcrumbPathBox.Text = _currentViewRoot?.FullPath ?? string.Empty;
+            BreadcrumbPathBox.SelectAll();
+            BreadcrumbPathBox.Focus();
+        }
+
+        private void ExitBreadcrumbEditMode(bool applyPath)
+        {
+            if (applyPath)
+            {
+                string path = BreadcrumbPathBox.Text.Trim();
+                if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+                {
+                    // Navigate to the entered path
+                    _ = NavigateToPathAsync(path);
+                }
+            }
+            _breadcrumbEditMode = false;
+            BreadcrumbPanel.Visibility = Visibility.Visible;
+            BreadcrumbPathBox.Visibility = Visibility.Collapsed;
+        }
+
+        private async Task NavigateToPathAsync(string path)
+        {
+            try
+            {
+                ScanningSpinner.Visibility = Visibility.Visible;
+                TreemapCanvas.Children.Clear();
+                _treeRoot = new StorageItem { Name = System.IO.Path.GetFileName(path), FullPath = path, IsFolder = true };
+                _currentViewRoot = _treeRoot;
+                _progressStopwatch.Restart();
+                var progress = new Progress<StorageItem>(item =>
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        if (_progressStopwatch.ElapsedMilliseconds > 2000)
+                        {
+                            DrawTreemap(_treeRoot);
+                            UpdateFilesListView();
+                            _progressStopwatch.Restart();
+                        }
+                        UpdateFooter(item);
+                    });
+                });
+                var root = await Task.Run(() => StorageItem.BuildFromDirectory(path, progress, _treeRoot, null, _ignoreReparsePoints));
+                ScanningSpinner.Visibility = Visibility.Collapsed;
+                _treeRoot = root;
+                _currentViewRoot = root;
+                UpdateBreadcrumbBar(root);
+                DrawTreemap(root);
+                UpdateFooter(root);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not navigate to path:\n{path}\n\n{ex.Message}", "Navigation Error");
+            }
+        }
+
+        private void BreadcrumbPathBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                ExitBreadcrumbEditMode(true);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                ExitBreadcrumbEditMode(false);
+                e.Handled = true;
+            }
+        }
+
+        private void BreadcrumbPathBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            ExitBreadcrumbEditMode(false);
         }
     }
 }
