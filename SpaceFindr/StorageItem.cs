@@ -107,7 +107,9 @@ namespace SpaceFindr
             {
                 IgnoreInaccessible = true,
                 RecurseSubdirectories = false,
-                ReturnSpecialDirectories = false
+                ReturnSpecialDirectories = false,
+                // Add this line to include Hidden and System files
+                AttributesToSkip = 0
             };
             string rootName = System.IO.Path.GetFileName(path.TrimEnd(System.IO.Path.DirectorySeparatorChar));
             var root = rootRef ?? new StorageItem

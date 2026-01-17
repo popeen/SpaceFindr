@@ -165,6 +165,21 @@
                                 </ToolTip>
                             </CheckBox.ToolTip>
                         </CheckBox>
+
+                        <CheckBox x:Name="ShowChildFoldersInTreemapCheckBox" Content="Show subdirectories (Experimental)" IsChecked="True" Checked="ShowChildFoldersInTreemapCheckBox_Checked" Unchecked="ShowChildFoldersInTreemapCheckBox_Unchecked" Margin="24,0,0,0">
+                            <CheckBox.ToolTip>
+                                <ToolTip>
+                                    <StackPanel MaxWidth="300">
+                                        <TextBlock TextWrapping="Wrap" FontWeight="Bold" Margin="0,0,0,5">
+                                            Show subdirectories
+                                        </TextBlock>
+                                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
+                                            When enabled, the treemap will show up to 2 levels of subdirectories inside each folder rectangle.
+                                        </TextBlock>
+                                    </StackPanel>
+                                </ToolTip>
+                            </CheckBox.ToolTip>
+                        </CheckBox>
                         <!-- Drive list Subcategory -->
                         <TextBlock Text="Drive list" FontWeight="Bold" FontSize="13" Margin="8,16,0,8"/>
                         <CheckBox x:Name="SwitchUsedAndFreeCheckBox" Content="Swap used and free in drive view" IsChecked="False" Checked="SwitchUsedAndFreeCheckBox_Checked" Unchecked="SwitchUsedAndFreeCheckBox_Unchecked" Margin="24,0,0,0">
