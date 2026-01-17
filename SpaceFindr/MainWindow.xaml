@@ -132,6 +132,40 @@
                                 </ToolTip>
                             </CheckBox.ToolTip>
                         </CheckBox>
+                        <CheckBox x:Name="ShowRemovableDrivesCheckBox" Content="Show removable drives (USB, SD cards, etc.)" IsChecked="True" Checked="ShowRemovableDrivesCheckBox_Checked" Unchecked="ShowRemovableDrivesCheckBox_Unchecked" Margin="16,0,0,0">
+                            <CheckBox.ToolTip>
+                                <ToolTip>
+                                    <StackPanel MaxWidth="300">
+                                        <TextBlock TextWrapping="Wrap" FontWeight="Bold" Margin="0,0,0,5">
+                                            Show removable drives
+                                        </TextBlock>
+                                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
+                                            When enabled, SpaceFindr will display removable storage devices such as USB flash drives and SD cards in the drives list.
+                                        </TextBlock>
+                                        <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" FontStyle="Italic">
+                                            Disable this if you want to hide temporary or external drives.
+                                        </TextBlock>
+                                    </StackPanel>
+                                </ToolTip>
+                            </CheckBox.ToolTip>
+                        </CheckBox>
+                        <CheckBox x:Name="ShowNetworkDrivesCheckBox" Content="Show network drives (mapped drives, shares)" IsChecked="True" Checked="ShowNetworkDrivesCheckBox_Checked" Unchecked="ShowNetworkDrivesCheckBox_Unchecked" Margin="16,0,0,0">
+                            <CheckBox.ToolTip>
+                                <ToolTip>
+                                    <StackPanel MaxWidth="300">
+                                        <TextBlock TextWrapping="Wrap" FontWeight="Bold" Margin="0,0,0,5">
+                                            Show network drives
+                                        </TextBlock>
+                                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
+                                            When enabled, SpaceFindr will display network drives and mapped network shares in the drives list.
+                                        </TextBlock>
+                                        <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" FontStyle="Italic">
+                                            Disable this if you want to hide network storage.
+                                        </TextBlock>
+                                    </StackPanel>
+                                </ToolTip>
+                            </CheckBox.ToolTip>
+                        </CheckBox>
 
                         <!-- Scanning Behavior -->
                         <TextBlock Text="Scanning Behavior" FontWeight="Bold" FontSize="14" Margin="0,20,0,8"/>
