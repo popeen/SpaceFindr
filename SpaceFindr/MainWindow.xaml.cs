@@ -60,14 +60,12 @@ namespace SpaceFindr
             ShowFreeSpaceCheckBox.IsChecked = _showFreeSpace;
             CheckUpdatesOnStartCheckBox.IsChecked = _checkUpdatesOnStart;
             IgnoreReparsePointsCheckBox.IsChecked = _ignoreReparsePoints;
-            ShowRemovableDrivesCheckBox.IsChecked = _showRemovableDrives;
-            ShowNetworkDrivesCheckBox.IsChecked = _showNetworkDrives;
-            ShowTipsCheckBox.IsChecked = _showTips;
             _isInitializing = false;
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
             this.Title = $"SpaceFindr ALPHA v.{version}";
             this.PreviewMouseDown += MainWindow_PreviewMouseDown;
             this.Deactivated += MainWindow_Deactivated;
+            this.PreviewKeyDown += MainWindow_PreviewKeyDown;
             UpdateDriveUsage(null); // Load all drives on startup
             if (_checkUpdatesOnStart)
             {
@@ -171,6 +169,53 @@ namespace SpaceFindr
             if (_breadcrumbEditMode)
             {
                 ExitBreadcrumbEditMode(false);
+            }
+        }
+
+        private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control &&
+                (Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt &&
+                e.Key >= Key.A && e.Key <= Key.Z)
+            {
+                char driveLetter = (char)('A' + (e.Key - Key.A));
+                string driveRoot = driveLetter + ":\\";
+                var drive = DriveInfo.GetDrives().FirstOrDefault(d => d.IsReady && string.Equals(d.Name, driveRoot, StringComparison.OrdinalIgnoreCase));
+                if (drive != null)
+                {
+                    e.Handled = true;
+                    ScanningSpinner.Visibility = Visibility.Visible;
+                    TreemapCanvas.Children.Clear();
+                    _treeRoot = new StorageItem { Name = drive.Name, FullPath = drive.Name, IsFolder = true };
+                    _currentViewRoot = _treeRoot;
+                    _progressStopwatch.Restart();
+                    var progress = new Progress<StorageItem>(item =>
+                    {
+                        var now = DateTime.Now;
+                        if ((now - _lastFooterUpdate).TotalMilliseconds > 500)
+                        {
+                            _lastFooterUpdate = now;
+                            Application.Current.Dispatcher.InvokeAsync(() =>
+                            {
+                                DrawTreemap(_treeRoot);
+                                UpdateFooter(item);
+                            });
+                        }
+                    });
+                    Task.Run(async () =>
+                    {
+                        var rootItem = await Task.Run(() => StorageItem.BuildFromDirectory(drive.Name, progress, _treeRoot, null, _ignoreReparsePoints));
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            ScanningSpinner.Visibility = Visibility.Collapsed;
+                            _treeRoot = rootItem;
+                            _currentViewRoot = rootItem;
+                            UpdateBreadcrumbBar(rootItem);
+                            DrawTreemap(rootItem);
+                            UpdateFooter(rootItem);
+                        });
+                    });
+                }
             }
         }
 
