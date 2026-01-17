@@ -41,12 +41,14 @@ namespace SpaceFindr
         private bool _ignoreReparsePoints = true;
         private bool _showRemovableDrives = true;
         private bool _showNetworkDrives = true;
+        private bool _showTips = true;
         private const string RegistryPath = @"Software\\Popeen\\SpaceFindr";
         private const string ShowFreeSpaceKey = "ShowFreeSpace";
         private const string CheckUpdatesKey = "CheckUpdatesOnStart";
         private const string IgnoreReparsePointsKey = "IgnoreReparsePoints";
         private const string ShowRemovableDrivesKey = "ShowRemovableDrives";
         private const string ShowNetworkDrivesKey = "ShowNetworkDrives";
+        private const string ShowTipsKey = "ShowTips";
         private bool _isInitializing = true;
 
         private bool _breadcrumbEditMode = false;
@@ -60,6 +62,7 @@ namespace SpaceFindr
             IgnoreReparsePointsCheckBox.IsChecked = _ignoreReparsePoints;
             ShowRemovableDrivesCheckBox.IsChecked = _showRemovableDrives;
             ShowNetworkDrivesCheckBox.IsChecked = _showNetworkDrives;
+            ShowTipsCheckBox.IsChecked = _showTips;
             _isInitializing = false;
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
             this.Title = $"SpaceFindr ALPHA v.{version}";
@@ -83,6 +86,7 @@ namespace SpaceFindr
                     _ignoreReparsePoints = Convert.ToBoolean(key.GetValue(IgnoreReparsePointsKey, true));
                     _showRemovableDrives = Convert.ToBoolean(key.GetValue(ShowRemovableDrivesKey, true));
                     _showNetworkDrives = Convert.ToBoolean(key.GetValue(ShowNetworkDrivesKey, true));
+                    _showTips = Convert.ToBoolean(key.GetValue(ShowTipsKey, true));
                 }
             }
         }
@@ -96,6 +100,7 @@ namespace SpaceFindr
                 key.SetValue(IgnoreReparsePointsKey, _ignoreReparsePoints);
                 key.SetValue(ShowRemovableDrivesKey, _showRemovableDrives);
                 key.SetValue(ShowNetworkDrivesKey, _showNetworkDrives);
+                key.SetValue(ShowTipsKey, _showTips);
             }
         }
 
@@ -418,6 +423,22 @@ namespace SpaceFindr
             if (!_isInitializing) SaveSettingsToRegistry();
             UpdateDriveUsage(null);
         }
+        private void ShowTipsCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _showTips = true;
+            if (!_isInitializing) SaveSettingsToRegistry();
+            TipBar.Visibility = Visibility.Visible;
+        }
+        private void ShowTipsCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _showTips = false;
+            if (!_isInitializing) SaveSettingsToRegistry();
+            TipBar.Visibility = Visibility.Collapsed;
+        }
+        private void TipBarCloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            TipBar.Visibility = Visibility.Collapsed;
+        }
 
         private void DrawTreemap(StorageItem root)
         {
@@ -729,8 +750,6 @@ namespace SpaceFindr
             foreach (var drive in DriveInfo.GetDrives())
             {
                 if (!drive.IsReady) continue;
-                if (drive.DriveType == DriveType.Removable && !_showRemovableDrives) continue;
-                if (drive.DriveType == DriveType.Network && !_showNetworkDrives) continue;
                 string root = drive.Name;
                 string label = drive.VolumeLabel;
                 string driveLetter = root.Length >= 2 ? root.Substring(0, 2) : root;

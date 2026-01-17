@@ -63,11 +63,20 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <WrapPanel x:Name="DrivesPanel" Orientation="Horizontal" Grid.Row="0" HorizontalAlignment="Left" Margin="0,0,0,10"/>
-        <Grid Grid.Row="1" Margin="0,0,0,10">
+        <Border x:Name="TipBar" ToolTip="You can turn off tips in the settings menu" Grid.Row="0" Background="#E3F2FD" Padding="12,4" CornerRadius="4" Margin="0,0,0,10" Visibility="Visible">
+            <DockPanel>
+                <TextBlock Text="TIP: You can use the select folder option to scan drives on other computers in the network if they are shared with you" Foreground="#1565C0" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
+                <Button x:Name="TipBarCloseButton" DockPanel.Dock="Right" Width="28" Height="28" Margin="8,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right" Background="Transparent" BorderThickness="0" Click="TipBarCloseButton_Click">
+                    <TextBlock Text="✕" FontSize="16" Foreground="#1565C0" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                </Button>
+            </DockPanel>
+        </Border>
+        <WrapPanel x:Name="DrivesPanel" Orientation="Horizontal" Grid.Row="1" HorizontalAlignment="Left" Margin="0,0,0,10"/>
+        <Grid Grid.Row="2" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -85,7 +94,7 @@
                 </Grid>
             </Border>
         </Grid>
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="3">
             <TabControl x:Name="MainTabControl" SelectionChanged="MainTabControl_SelectionChanged">
                 <TabItem Header="Treemap">
                     <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="6">
@@ -212,11 +221,28 @@
                                 </ToolTip>
                             </CheckBox.ToolTip>
                         </CheckBox>
+                        <CheckBox x:Name="ShowTipsCheckBox" Content="Show application tips" IsChecked="True" Checked="ShowTipsCheckBox_Checked" Unchecked="ShowTipsCheckBox_Unchecked" Margin="16,0,0,0">
+                            <CheckBox.ToolTip>
+                                <ToolTip>
+                                    <StackPanel MaxWidth="300">
+                                        <TextBlock TextWrapping="Wrap" FontWeight="Bold" Margin="0,0,0,5">
+                                            Show application tips
+                                        </TextBlock>
+                                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
+                                            When enabled, helpful tips will be displayed at the top of the application to guide you in using SpaceFindr.
+                                        </TextBlock>
+                                        <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" FontStyle="Italic">
+                                            Disable this if you do not want to see application tips.
+                                        </TextBlock>
+                                    </StackPanel>
+                                </ToolTip>
+                            </CheckBox.ToolTip>
+                        </CheckBox>
                     </StackPanel>
                 </TabItem>
             </TabControl>
         </Grid>
-        <StatusBar Grid.Row="3" Height="28" VerticalAlignment="Bottom">
+        <StatusBar Grid.Row="4" Height="28" VerticalAlignment="Bottom">
             <StatusBarItem>
                 <local:Spinner x:Name="ScanningSpinner" Visibility="Collapsed" Margin="0,0,8,0" />
             </StatusBarItem>
