@@ -8,6 +8,14 @@
         Title="SpaceFindr BETA" Height="900" Width="1600"
         SizeChanged="Window_SizeChanged">
     <Window.Resources>
+        <Style x:Key="UpArrowPathStyle" TargetType="Path">
+            <Setter Property="Stroke" Value="#444444"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=Button}}" Value="False">
+                    <Setter Property="Stroke" Value="#888888"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="BreadcrumbButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
@@ -81,10 +89,22 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <Button x:Name="BrowseButton" Content="Select Folder" Width="150" Height="40" Margin="0,0,10,0"
-                    Click="BrowseButton_Click" Style="{StaticResource BrowseButtonStyle}" Grid.Column="0"
-                    ToolTip="Scan a folder or drive (Ctrl+O)">
-            </Button>
+            <StackPanel Orientation="Horizontal" Grid.Column="0">
+                <Button x:Name="BrowseButton" Content="Select Folder" Width="150" Height="40" Margin="0,0,10,0"
+                        Click="BrowseButton_Click" Style="{StaticResource BrowseButtonStyle}"
+                        ToolTip="Scan a folder or drive (Ctrl+O)" />
+                <Button x:Name="UpButton" Width="30" Height="30" Margin="0,0,10,0"
+                        Click="UpButton_Click" Style="{StaticResource BrowseButtonStyle}"
+                        ToolTip="Go to parent folder">
+                    <Path Data="M 20,28 L 20,12 M 12,20 L 20,12 L 28,20"
+                          StrokeThickness="2"
+                          Style="{StaticResource UpArrowPathStyle}"
+                          Fill="Transparent"
+                          Stretch="Uniform"
+                          Width="15" Height="15"
+                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+            </StackPanel>
             <Border x:Name="BreadcrumbBarBorder" Background="#F5F5F5" Padding="8,0" Height="40" VerticalAlignment="Center"
                     BorderBrush="#B4C7E7" BorderThickness="1" CornerRadius="6" MouseDown="BreadcrumbBar_MouseDown"
                     Visibility="Collapsed" Grid.Column="1">

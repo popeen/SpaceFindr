@@ -83,6 +83,7 @@ namespace SpaceFindr
             if (tipTextBlock != null && tipTextBlock.Children.Count > 0 && tipTextBlock.Children[0] is TextBlock tb)
                 tb.Text = tipText;
             UpdateDriveUsage(null); // Load all drives on startup
+            UpdateUpButtonState();
             if (_checkUpdatesOnStart)
             {
                 _ = CheckForUpdatesAsync();
@@ -100,6 +101,24 @@ namespace SpaceFindr
             _showUsedSpace = false;
             if (!_isInitializing) SaveSettingsToRegistry();
             UpdateDriveUsage(null);
+        }
+
+        private void UpButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentViewRoot?.Parent != null)
+            {
+                _currentViewRoot = _currentViewRoot.Parent;
+                UpdateBreadcrumbBar(_currentViewRoot);
+                DrawTreemap(_currentViewRoot);
+                UpdateFooter(_currentViewRoot);
+            }
+            UpdateUpButtonState();
+        }
+
+        private void UpdateUpButtonState()
+        {
+            if (UpButton != null)
+                UpButton.IsEnabled = _currentViewRoot?.Parent != null;
         }
 
         private void LoadSettingsFromRegistry()
@@ -313,6 +332,7 @@ namespace SpaceFindr
         private void UpdateBreadcrumbBar(StorageItem current)
         {
             BreadcrumbBarBorder.Visibility = _currentViewRoot == null ? Visibility.Collapsed : Visibility.Visible;
+            UpdateUpButtonState();
             BreadcrumbPanel.Children.Clear();
             if (current == null) return;
             var path = current.FullPath;
