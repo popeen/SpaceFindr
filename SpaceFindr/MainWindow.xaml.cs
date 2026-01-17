@@ -53,6 +53,13 @@ namespace SpaceFindr
 
         private bool _breadcrumbEditMode = false;
 
+        private readonly string[] _tips = new[]
+        {
+            "TIP: You can use the select folder option to scan drives on other computers in the network if they are shared with you",
+            "TIP: You can right-click files and folders for more options.",
+            "TIP: Press Ctrl+Alt+drive letter to quickly scan a drive (e.g. Ctrl+Alt+C for C:)."
+        };
+
         public MainWindow()
         {
             InitializeComponent();
@@ -66,6 +73,12 @@ namespace SpaceFindr
             this.PreviewMouseDown += MainWindow_PreviewMouseDown;
             this.Deactivated += MainWindow_Deactivated;
             this.PreviewKeyDown += MainWindow_PreviewKeyDown;
+            // Set a random tip on startup
+            var rand = new Random();
+            var tipText = _tips[rand.Next(_tips.Length)];
+            var tipTextBlock = TipBar.Child as DockPanel;
+            if (tipTextBlock != null && tipTextBlock.Children.Count > 0 && tipTextBlock.Children[0] is TextBlock tb)
+                tb.Text = tipText;
             UpdateDriveUsage(null); // Load all drives on startup
             if (_checkUpdatesOnStart)
             {
