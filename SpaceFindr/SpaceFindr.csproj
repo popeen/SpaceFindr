@@ -15,8 +15,8 @@
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <PackageProjectUrl>https://popeen.com</PackageProjectUrl>
     <PackageIcon>icon.png</PackageIcon>
-    <AssemblyVersion>26.1.17.1</AssemblyVersion>
-    <FileVersion>26.1.17.1</FileVersion>
+    <AssemblyVersion>26.1.17.2</AssemblyVersion>
+    <FileVersion>26.1.17.2</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
