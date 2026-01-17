@@ -6,7 +6,7 @@
 
 # SpaceFindr
 
-A fresh take on the age old utility for finding what is taking up space on your drives.
+A fresh take on the age old utility for finding what is taking up space on your drives. Made to feel intuitive from day one. 
 
 ![Screenshot of SpaceFindr](screenshot.jpg)
 
