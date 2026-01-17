@@ -6,7 +6,7 @@
 
 # SpaceFindr
 
-A modern take on the age old utility for finding what is taking up space on your drives.
+A fresh take on the age old utility for finding what is taking up space on your drives. Made to feel intuitive from day one. 
 
 ![Screenshot of SpaceFindr](screenshot.jpg)
 
@@ -15,9 +15,10 @@ A modern take on the age old utility for finding what is taking up space on your
 - **Treemap Visualization:** Instantly see which folders and files are taking up the most space.
 - **Drive Overview:** View all local, removable, and network drives with usage bars and free space indicators.
 - **Largest Files List:** Quickly find and manage the largest files on your system.
-- **Breadcrumb Navigation:** Easily navigate through folders with a clickable breadcrumb bar.
+- **Easy Navigation:** Easily navigate through folders by clicking boxes or the familiar navigation bar.
+- **Ask AI:** Rightclick any file or folder and you can ask AI if it's safe to delete it. Just remember, AI can be wrong. 
 - **Custom Folder Scanning:** Use the "Select Folder" option to scan any folder, including network shares.
-- **Modern UI:** Light, clean, and responsive interface with tooltips and shortcuts.
+- **Clean UI:** Light, simple, and responsive interface with tooltips and shortcuts.
 
 ## Getting Started
 
