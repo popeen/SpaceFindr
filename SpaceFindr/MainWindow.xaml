@@ -181,18 +181,15 @@
                                 </ToolTip>
                             </CheckBox.ToolTip>
                         </CheckBox>
-                        <CheckBox x:Name="ShowRemovableDrivesCheckBox" Content="Show removable drives (USB, SD cards, etc.)" IsChecked="True" Checked="ShowRemovableDrivesCheckBox_Checked" Unchecked="ShowRemovableDrivesCheckBox_Unchecked" Margin="16,0,0,0">
+                        <CheckBox x:Name="SwitchUsedAndFreeCheckBox" Content="Swap used and free in drive view" IsChecked="False" Checked="SwitchUsedAndFreeCheckBox_Checked" Unchecked="SwitchUsedAndFreeCheckBox_Unchecked" Margin="16,0,0,0">
                             <CheckBox.ToolTip>
                                 <ToolTip>
                                     <StackPanel MaxWidth="300">
                                         <TextBlock TextWrapping="Wrap" FontWeight="Bold" Margin="0,0,0,5">
-                                            Show removable drives
+                                            Swap used and free in drive view
                                         </TextBlock>
                                         <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
-                                            When enabled, SpaceFindr will display removable storage devices such as USB flash drives and SD cards in the drives list.
-                                        </TextBlock>
-                                        <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" FontStyle="Italic">
-                                            Disable this if you want to hide temporary or external drives.
+                                            When enabled, the drive info panel will show 'used of total' on top and 'free (percent)' below, instead of the default 'free of total' and 'used (percent)'.
                                         </TextBlock>
                                     </StackPanel>
                                 </ToolTip>

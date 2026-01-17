@@ -51,6 +51,9 @@ namespace SpaceFindr
         private const string ShowRemovableDrivesKey = "ShowRemovableDrives";
         private const string ShowNetworkDrivesKey = "ShowNetworkDrives";
         private const string ShowTipsKey = "ShowTips";
+        // For the Switch used and free in drive view setting
+        private bool _switchUsedAndFreeInDriveView = false;
+        private const string SwitchUsedAndFreeKey = "SwitchUsedAndFreeInDriveView";
         private bool _isInitializing = true;
 
         private bool _breadcrumbEditMode = false;
@@ -68,9 +71,11 @@ namespace SpaceFindr
             LoadSettingsFromRegistry();
             ShowFreeSpaceCheckBox.IsChecked = _showFreeSpace;
             ShowUsedSpaceCheckBox.IsChecked = _showUsedSpace;
+            SwitchUsedAndFreeCheckBox.IsChecked = _switchUsedAndFreeInDriveView;
             CheckUpdatesOnStartCheckBox.IsChecked = _checkUpdatesOnStart;
             IgnoreReparsePointsCheckBox.IsChecked = _ignoreReparsePoints;
             _isInitializing = false;
+            SwitchUsedAndFreeCheckBox.IsChecked = _switchUsedAndFreeInDriveView;
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
             this.Title = $"SpaceFindr BETA v.{version}";
             this.PreviewMouseDown += MainWindow_PreviewMouseDown;
@@ -102,6 +107,56 @@ namespace SpaceFindr
             if (!_isInitializing) SaveSettingsToRegistry();
             UpdateDriveUsage(null);
         }
+        
+        private void SwitchUsedAndFreeCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _switchUsedAndFreeInDriveView = true;
+            if (!_isInitializing) SaveSettingsToRegistry();
+            UpdateDriveUsage(null);
+            // Update ShowUsedSpaceCheckBox to be about free space
+            if (ShowUsedSpaceCheckBox != null)
+            {
+                ShowUsedSpaceCheckBox.Content = "Show free space on the drive list";
+                ShowUsedSpaceCheckBox.ToolTip = new ToolTip
+                {
+                    Content = new StackPanel
+                    {
+                        MaxWidth = 300,
+                        Children =
+                        {
+                            new TextBlock { Text = "Show free space on drives", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,5) },
+                            new TextBlock { Text = "When enabled, displays the free space as a value in the drive info panel.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,5) },
+                            new TextBlock { Text = "This helps you visualize how much storage space is still available on your drives.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,5,0,0), FontStyle = FontStyles.Italic }
+                        }
+                    }
+                };
+            }
+        }
+
+        private void SwitchUsedAndFreeCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _switchUsedAndFreeInDriveView = false;
+            if (!_isInitializing) SaveSettingsToRegistry();
+            UpdateDriveUsage(null);
+            // Revert ShowUsedSpaceCheckBox to be about used space
+            if (ShowUsedSpaceCheckBox != null)
+            {
+                ShowUsedSpaceCheckBox.Content = "Show used space on the drive list";
+                ShowUsedSpaceCheckBox.ToolTip = new ToolTip
+                {
+                    Content = new StackPanel
+                    {
+                        MaxWidth = 300,
+                        Children =
+                        {
+                            new TextBlock { Text = "Show used space on drives", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,5) },
+                            new TextBlock { Text = "When enabled, displays the used space as a value in the drive info panel.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,5) },
+                            new TextBlock { Text = "This helps you visualize how much storage space is already used on your drives.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,5,0,0), FontStyle = FontStyles.Italic }
+                        }
+                    }
+                };
+            }
+        }
 
         private void UpButton_Click(object sender, RoutedEventArgs e)
         {
@@ -130,10 +185,12 @@ namespace SpaceFindr
                     _showFreeSpace = Convert.ToBoolean(key.GetValue(ShowFreeSpaceKey, true));
                     _showUsedSpace = Convert.ToBoolean(key.GetValue(ShowUsedSpaceKey, false));
                     _checkUpdatesOnStart = Convert.ToBoolean(key.GetValue(CheckUpdatesKey, true));
+                    _switchUsedAndFreeInDriveView = Convert.ToBoolean(key.GetValue(SwitchUsedAndFreeKey, false));
                     _ignoreReparsePoints = Convert.ToBoolean(key.GetValue(IgnoreReparsePointsKey, true));
                     _showRemovableDrives = Convert.ToBoolean(key.GetValue(ShowRemovableDrivesKey, true));
                     _showNetworkDrives = Convert.ToBoolean(key.GetValue(ShowNetworkDrivesKey, true));
                     _showTips = Convert.ToBoolean(key.GetValue(ShowTipsKey, true));
+                    _switchUsedAndFreeInDriveView = Convert.ToBoolean(key.GetValue(SwitchUsedAndFreeKey, false));
                 }
             }
         }
@@ -149,6 +206,9 @@ namespace SpaceFindr
                 key.SetValue(ShowRemovableDrivesKey, _showRemovableDrives);
                 key.SetValue(ShowNetworkDrivesKey, _showNetworkDrives);
                 key.SetValue(ShowTipsKey, _showTips);
+                key.SetValue(SwitchUsedAndFreeKey, _switchUsedAndFreeInDriveView);
+                key.SetValue(SwitchUsedAndFreeKey, _switchUsedAndFreeInDriveView);
+                key.SetValue(SwitchUsedAndFreeKey, _switchUsedAndFreeInDriveView);
             }
         }
 
@@ -910,20 +970,45 @@ namespace SpaceFindr
                 var nameText = new TextBlock { Text = driveDisplay, FontWeight = FontWeights.Normal, FontSize = 13, Margin = new Thickness(0, 0, 0, 2) };
                 var bar = new ProgressBar { Width = 180, Height = 18, Minimum = 0, Maximum = 100, Value = percent };
                 bar.Foreground = percentFree < 10 ? Brushes.Red : Brushes.DodgerBlue;
-                var freeText = new TextBlock { Text = $"{FormatSize((long)free)} free of {FormatSize((long)total)}", Margin = new Thickness(0, 4, 0, 0), TextAlignment = TextAlignment.Left };
+                var freeTextBlock = new TextBlock { Text = $"{FormatSize((long)free)} free of {FormatSize((long)total)}", Margin = new Thickness(0, 4, 0, 0), TextAlignment = TextAlignment.Left };
                 panel.Children.Add(nameText);
                 panel.Children.Add(bar);
-                panel.Children.Add(freeText);
-                if (_showUsedSpace)
+                if (_switchUsedAndFreeInDriveView)
                 {
-                    var usedPercent = total > 0 ? (used * 100.0 / total) : 0;
-                    var usedText = new TextBlock {
-                        Text = $"{FormatSize((long)used)} used ({usedPercent:0.#}%)",
-                        Margin = new Thickness(0, 2, 0, 0),
-                        Foreground = Brushes.DimGray,
-                        FontSize = 12
+                    // Show used of total, then free (percent)
+                    var usedTextBlock = new TextBlock {
+                        Text = $"{FormatSize((long)used)} used of {FormatSize((long)total)}",
+                        Margin = new Thickness(0, 4, 0, 0),
+                        TextAlignment = TextAlignment.Left
                     };
-                    panel.Children.Add(usedText);
+                    panel.Children.Add(usedTextBlock);
+                    if (_showUsedSpace)
+                    {
+                        var freePercent = total > 0 ? (free * 100.0 / total) : 0;
+                        var freePercentTextBlock = new TextBlock {
+                            Text = $"{FormatSize((long)free)} free ({freePercent:0.#}%)",
+                            Margin = new Thickness(0, 2, 0, 0),
+                            Foreground = Brushes.DimGray,
+                            FontSize = 12
+                        };
+                        panel.Children.Add(freePercentTextBlock);
+                    }
+                }
+                else
+                {
+                    // Default: free of total, then used (percent)
+                    panel.Children.Add(freeTextBlock);
+                    if (_showUsedSpace)
+                    {
+                        var usedPercent = total > 0 ? (used * 100.0 / total) : 0;
+                        var usedTextBlock = new TextBlock {
+                            Text = $"{FormatSize((long)used)} used ({usedPercent:0.#}%)",
+                            Margin = new Thickness(0, 2, 0, 0),
+                            Foreground = Brushes.DimGray,
+                            FontSize = 12
+                        };
+                        panel.Children.Add(usedTextBlock);
+                    }
                 }
                 panel.MouseLeftButtonUp += async (s, e) =>
                 {
