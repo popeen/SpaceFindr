@@ -58,6 +58,7 @@ namespace SpaceFindr
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
             this.Title = $"SpaceFindr ALPHA v.{version}";
             this.PreviewMouseDown += MainWindow_PreviewMouseDown;
+            this.Deactivated += MainWindow_Deactivated;
             UpdateDriveUsage(null); // Load all drives on startup
             if (_checkUpdatesOnStart)
             {
@@ -127,17 +128,34 @@ namespace SpaceFindr
             }
         }
 
-        private void MainWindow_PreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void MainWindow_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ChangedButton == System.Windows.Input.MouseButton.XButton1)
+            if (e.ChangedButton == MouseButton.XButton1)
             {
                 NavigateBack();
                 e.Handled = true;
             }
-            else if (e.ChangedButton == System.Windows.Input.MouseButton.XButton2)
+            else if (e.ChangedButton == MouseButton.XButton2)
             {
                 NavigateForward();
                 e.Handled = true;
+            }
+            if (_breadcrumbEditMode && BreadcrumbPathBox.Visibility == Visibility.Visible)
+            {
+                var mousePos = e.GetPosition(BreadcrumbPathBox);
+                var rect = new Rect(0, 0, BreadcrumbPathBox.ActualWidth, BreadcrumbPathBox.ActualHeight);
+                if (!rect.Contains(mousePos))
+                {
+                    ExitBreadcrumbEditMode(false);
+                }
+            }
+        }
+
+        private void MainWindow_Deactivated(object sender, EventArgs e)
+        {
+            if (_breadcrumbEditMode)
+            {
+                ExitBreadcrumbEditMode(false);
             }
         }
 
@@ -704,7 +722,7 @@ namespace SpaceFindr
                 double percent = total > 0 ? ((total - free) / total) * 100 : 0;
                 double percentFree = total > 0 ? (free / total) * 100 : 0;
 
-                var panel = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 16, 0), Width = 180, Cursor = System.Windows.Input.Cursors.Hand };
+                var panel = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 16, 10), Width = 180, Cursor = System.Windows.Input.Cursors.Hand };
                 var nameText = new TextBlock { Text = driveDisplay, FontWeight = FontWeights.Normal, FontSize = 13, Margin = new Thickness(0, 0, 0, 2) };
                 var bar = new ProgressBar { Width = 180, Height = 18, Minimum = 0, Maximum = 100, Value = percent };
                 bar.Foreground = percentFree < 10 ? Brushes.Red : Brushes.DodgerBlue;
