@@ -74,6 +74,8 @@ namespace SpaceFindr
             SwitchUsedAndFreeCheckBox.IsChecked = _switchUsedAndFreeInDriveView;
             CheckUpdatesOnStartCheckBox.IsChecked = _checkUpdatesOnStart;
             IgnoreReparsePointsCheckBox.IsChecked = _ignoreReparsePoints;
+            ShowRemovableDrivesCheckBox.IsChecked = true;
+            ShowNetworkDrivesCheckBox.IsChecked = true;
             _isInitializing = false;
             SwitchUsedAndFreeCheckBox.IsChecked = _switchUsedAndFreeInDriveView;
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
@@ -936,6 +938,10 @@ namespace SpaceFindr
             foreach (var drive in DriveInfo.GetDrives())
             {
                 if (!drive.IsReady) continue;
+                // Filter removable and network drives based on settings
+                if (drive.DriveType == DriveType.Removable && !_showRemovableDrives) continue;
+                if (drive.DriveType == DriveType.Network && !_showNetworkDrives) continue;
+
                 string root = drive.Name;
                 string label = drive.VolumeLabel;
                 string driveLetter = root.Length >= 2 ? root.Substring(0, 2) : root;
