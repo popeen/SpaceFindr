@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SpaceFindr"
         mc:Ignorable="d"
-        Title="SpaceFindr ALPHA" Height="900" Width="1600"
+        Title="SpaceFindr BETA" Height="900" Width="1600"
         SizeChanged="Window_SizeChanged">
     <Window.Resources>
         <Style x:Key="BreadcrumbButtonStyle" TargetType="Button">
