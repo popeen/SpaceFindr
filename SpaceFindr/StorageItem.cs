@@ -102,13 +102,18 @@ namespace SpaceFindr
 
         public static StorageItem BuildFromDirectory(string path, IProgress<StorageItem> progress = null, StorageItem rootRef = null, StorageItem parent = null, bool ignoreReparsePoints = true)
         {
-            var dirInfo = new DirectoryInfo(path);
-            if (ShouldSkipDirectory(dirInfo, ignoreReparsePoints))
-                return null;
+            // Use FileSystemEnumerator for efficient scanning
+            var options = new EnumerationOptions
+            {
+                IgnoreInaccessible = true,
+                RecurseSubdirectories = false,
+                ReturnSpecialDirectories = false
+            };
+            string rootName = System.IO.Path.GetFileName(path.TrimEnd(System.IO.Path.DirectorySeparatorChar));
             var root = rootRef ?? new StorageItem
             {
-                Name = dirInfo.Name,
-                FullPath = dirInfo.FullName,
+                Name = string.IsNullOrEmpty(rootName) ? path : rootName,
+                FullPath = path,
                 IsFolder = true,
                 Parent = parent
             };
@@ -116,38 +121,56 @@ namespace SpaceFindr
             DateTime lastReport = DateTime.Now;
             try
             {
-                foreach (var dir in dirInfo.GetDirectories())
+                var enumerable = new System.IO.Enumeration.FileSystemEnumerable<StorageItem>(
+                    path,
+                    (ref System.IO.Enumeration.FileSystemEntry entry) =>
+                    {
+                        string fileName = entry.FileName.ToString();
+                        string fullPath = System.IO.Path.Combine(path, fileName);
+                        bool isDir = entry.Attributes.HasFlag(FileAttributes.Directory);
+                        if (isDir)
+                        {
+                            if (ignoreReparsePoints && entry.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                                return null;
+                            if (fileName == "." || fileName == "..")
+                                return null;
+                            var child = BuildFromDirectory(fullPath, progress, null, root, ignoreReparsePoints);
+                            return child;
+                        }
+                        else
+                        {
+                            if (ignoreReparsePoints && entry.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                                return null;
+                            if (entry.Length == 0)
+                                return null;
+                            string ext = System.IO.Path.GetExtension(fileName).ToLowerInvariant();
+                            if (ext == ".nextcloud" || ext == ".cloud" || ext == ".cloudf")
+                                return null;
+                            return new StorageItem
+                            {
+                                Name = fileName,
+                                FullPath = fullPath,
+                                Size = entry.Length,
+                                IsFolder = false,
+                                Parent = root
+                            };
+                        }
+                    },
+                    options
+                );
+                using (var enumerator = enumerable.GetEnumerator())
                 {
-                    if (ShouldSkipDirectory(dir, ignoreReparsePoints))
-                        continue;
-                    var child = BuildFromDirectory(dir.FullName, progress, null, root, ignoreReparsePoints);
-                    if (child == null) continue;
-                    root.Children.Add(child);
-                    totalSize += child.Size;
-                    if ((DateTime.Now - lastReport).TotalMilliseconds > 500)
+                    while (enumerator.MoveNext())
                     {
-                        progress?.Report(rootRef ?? root);
-                        lastReport = DateTime.Now;
-                    }
-                }
-                foreach (var file in dirInfo.GetFiles())
-                {
-                    if (ShouldSkipFile(file, ignoreReparsePoints))
-                        continue;
-                    var fileItem = new StorageItem
-                    {
-                        Name = file.Name,
-                        FullPath = file.FullName,
-                        Size = file.Length,
-                        IsFolder = false,
-                        Parent = root
-                    };
-                    root.Children.Add(fileItem);
-                    totalSize += file.Length;
-                    if ((DateTime.Now - lastReport).TotalMilliseconds > 500)
-                    {
-                        progress?.Report(rootRef ?? root);
-                        lastReport = DateTime.Now;
+                        var item = enumerator.Current;
+                        if (item == null) continue;
+                        root.Children.Add(item);
+                        totalSize += item.Size;
+                        if ((DateTime.Now - lastReport).TotalMilliseconds > 500)
+                        {
+                            progress?.Report(rootRef ?? root);
+                            lastReport = DateTime.Now;
+                        }
                     }
                 }
             }
