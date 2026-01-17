@@ -322,7 +322,31 @@ namespace SpaceFindr
                     string targetPath = (string)btn.Tag;
                     if (Directory.Exists(targetPath))
                     {
-                        await NavigateToPathAsync(targetPath);
+                        // Try to find the StorageItem for this path in the current tree
+                        StorageItem targetItem = _treeRoot;
+                        if (targetItem != null && !string.Equals(targetItem.FullPath, targetPath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var parts = targetPath.TrimEnd(System.IO.Path.DirectorySeparatorChar).Split(System.IO.Path.DirectorySeparatorChar);
+                            var current = targetItem;
+                            foreach (var part in parts.Skip(1))
+                            {
+                                if (current.Children == null) { current = null; break; }
+                                current = current.Children.FirstOrDefault(x => x != null && string.Equals(x.Name, part, StringComparison.OrdinalIgnoreCase));
+                                if (current == null) break;
+                            }
+                            targetItem = current;
+                        }
+                        if (targetItem != null && targetItem.Children != null && targetItem.Children.Count > 0)
+                        {
+                            _currentViewRoot = targetItem;
+                            UpdateBreadcrumbBar(targetItem);
+                            DrawTreemap(targetItem);
+                            UpdateFooter(targetItem);
+                        }
+                        else
+                        {
+                            await NavigateToPathAsync(targetPath);
+                        }
                     }
                 };
                 btn.PreviewKeyDown += BreadcrumbButton_PreviewKeyDown;
