@@ -253,9 +253,16 @@
                 <TextBlock x:Name="FolderFileCountText" Text="Items: 0 folders, 0 files" Foreground="#1565C0" />
             </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right">
-                <TextBlock Foreground="#1565C0">
-                    <Hyperlink NavigateUri="https://popeen.com" RequestNavigate="Hyperlink_RequestNavigate">popeen.com</Hyperlink>
-                </TextBlock>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Foreground="#1565C0">
+                        <Hyperlink NavigateUri="https://popeen.com" RequestNavigate="Hyperlink_RequestNavigate">popeen.com</Hyperlink>
+                    </TextBlock>
+                    <TextBlock Text="  " />
+                    <TextBlock Foreground="#1565C0" FontSize="15" VerticalAlignment="Center">❤️</TextBlock>
+                    <TextBlock Foreground="#1565C0" Margin="4,0,0,0">
+                        <Hyperlink NavigateUri="https://donations.popeen.com/" RequestNavigate="Hyperlink_RequestNavigate">Buy me a coffee</Hyperlink>
+                    </TextBlock>
+                </StackPanel>
             </StatusBarItem>
         </StatusBar>
     </Grid>
