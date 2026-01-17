@@ -126,18 +126,36 @@
                     <StackPanel Margin="16">
                         <!-- Display Settings -->
                         <TextBlock Text="Display" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
-                        <CheckBox x:Name="ShowFreeSpaceCheckBox" Content="Show free space on drives" IsChecked="True" Checked="ShowFreeSpaceCheckBox_Checked" Unchecked="ShowFreeSpaceCheckBox_Unchecked" Margin="16,0,0,0">
+                        <CheckBox x:Name="ShowFreeSpaceCheckBox" Content="Show a free space square in the Treemap" IsChecked="True" Checked="ShowFreeSpaceCheckBox_Checked" Unchecked="ShowFreeSpaceCheckBox_Unchecked" Margin="16,0,0,0">
+                        
                             <CheckBox.ToolTip>
                                 <ToolTip>
                                     <StackPanel MaxWidth="300">
                                         <TextBlock TextWrapping="Wrap" FontWeight="Bold" Margin="0,0,0,5">
-                                            Show free space on drives
+                                            Show free space square in Treemap
                                         </TextBlock>
                                         <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
                                             When enabled, displays the available free space as a gray area in the treemap when viewing drive roots.
                                         </TextBlock>
                                         <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" FontStyle="Italic">
                                             This helps you visualize how much storage space is still available on your drives alongside the used space.
+                                        </TextBlock>
+                                    </StackPanel>
+                                </ToolTip>
+                            </CheckBox.ToolTip>
+                        </CheckBox>
+                        <CheckBox x:Name="ShowUsedSpaceCheckBox" Content="Show used space on the drive list" IsChecked="False" Checked="ShowUsedSpaceCheckBox_Checked" Unchecked="ShowUsedSpaceCheckBox_Unchecked" Margin="16,0,0,0">
+                            <CheckBox.ToolTip>
+                                <ToolTip>
+                                    <StackPanel MaxWidth="300">
+                                        <TextBlock TextWrapping="Wrap" FontWeight="Bold" Margin="0,0,0,5">
+                    Show used space on drives
+                                        </TextBlock>
+                                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
+                    When enabled, displays the used space as a value in the drive info panel.
+                                        </TextBlock>
+                                        <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" FontStyle="Italic">
+                    This helps you visualize how much storage space is already used on your drives.
                                         </TextBlock>
                                     </StackPanel>
                                 </ToolTip>

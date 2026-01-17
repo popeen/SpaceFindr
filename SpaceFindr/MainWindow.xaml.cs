@@ -37,6 +37,7 @@ namespace SpaceFindr
         private DateTime _lastFooterUpdate = DateTime.MinValue;
 
         private bool _showFreeSpace = true;
+        private bool _showUsedSpace = false;
         private bool _checkUpdatesOnStart = true;
         private bool _ignoreReparsePoints = true;
         private bool _showRemovableDrives = true;
@@ -44,6 +45,7 @@ namespace SpaceFindr
         private bool _showTips = true;
         private const string RegistryPath = @"Software\\Popeen\\SpaceFindr";
         private const string ShowFreeSpaceKey = "ShowFreeSpace";
+        private const string ShowUsedSpaceKey = "ShowUsedSpace";
         private const string CheckUpdatesKey = "CheckUpdatesOnStart";
         private const string IgnoreReparsePointsKey = "IgnoreReparsePoints";
         private const string ShowRemovableDrivesKey = "ShowRemovableDrives";
@@ -65,6 +67,7 @@ namespace SpaceFindr
             InitializeComponent();
             LoadSettingsFromRegistry();
             ShowFreeSpaceCheckBox.IsChecked = _showFreeSpace;
+            ShowUsedSpaceCheckBox.IsChecked = _showUsedSpace;
             CheckUpdatesOnStartCheckBox.IsChecked = _checkUpdatesOnStart;
             IgnoreReparsePointsCheckBox.IsChecked = _ignoreReparsePoints;
             _isInitializing = false;
@@ -85,6 +88,19 @@ namespace SpaceFindr
                 _ = CheckForUpdatesAsync();
             }
         }
+        private void ShowUsedSpaceCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _showUsedSpace = true;
+            if (!_isInitializing) SaveSettingsToRegistry();
+            UpdateDriveUsage(null);
+        }
+
+        private void ShowUsedSpaceCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _showUsedSpace = false;
+            if (!_isInitializing) SaveSettingsToRegistry();
+            UpdateDriveUsage(null);
+        }
 
         private void LoadSettingsFromRegistry()
         {
@@ -93,6 +109,7 @@ namespace SpaceFindr
                 if (key != null)
                 {
                     _showFreeSpace = Convert.ToBoolean(key.GetValue(ShowFreeSpaceKey, true));
+                    _showUsedSpace = Convert.ToBoolean(key.GetValue(ShowUsedSpaceKey, false));
                     _checkUpdatesOnStart = Convert.ToBoolean(key.GetValue(CheckUpdatesKey, true));
                     _ignoreReparsePoints = Convert.ToBoolean(key.GetValue(IgnoreReparsePointsKey, true));
                     _showRemovableDrives = Convert.ToBoolean(key.GetValue(ShowRemovableDrivesKey, true));
@@ -107,6 +124,7 @@ namespace SpaceFindr
             using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RegistryPath))
             {
                 key.SetValue(ShowFreeSpaceKey, _showFreeSpace);
+                key.SetValue(ShowUsedSpaceKey, _showUsedSpace);
                 key.SetValue(CheckUpdatesKey, _checkUpdatesOnStart);
                 key.SetValue(IgnoreReparsePointsKey, _ignoreReparsePoints);
                 key.SetValue(ShowRemovableDrivesKey, _showRemovableDrives);
@@ -863,7 +881,8 @@ namespace SpaceFindr
                 }
                 double total = drive.TotalSize;
                 double free = drive.AvailableFreeSpace;
-                double percent = total > 0 ? ((total - free) / total) * 100 : 0;
+                double used = total - free;
+                double percent = total > 0 ? (used / total) * 100 : 0;
                 double percentFree = total > 0 ? (free / total) * 100 : 0;
 
                 var panel = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 16, 10), Width = 180, Cursor = System.Windows.Input.Cursors.Hand };
@@ -875,6 +894,17 @@ namespace SpaceFindr
                 panel.Children.Add(nameText);
                 panel.Children.Add(bar);
                 panel.Children.Add(freeText);
+                if (_showUsedSpace)
+                {
+                    var usedPercent = total > 0 ? (used * 100.0 / total) : 0;
+                    var usedText = new TextBlock {
+                        Text = $"{FormatSize((long)used)} used ({usedPercent:0.#}%)",
+                        Margin = new Thickness(0, 2, 0, 0),
+                        Foreground = Brushes.DimGray,
+                        FontSize = 12
+                    };
+                    panel.Children.Add(usedText);
+                }
                 panel.MouseLeftButtonUp += async (s, e) =>
                 {
                     ScanningSpinner.Visibility = Visibility.Visible;
