@@ -216,7 +216,7 @@ namespace SpaceFindr
                             _lastFooterUpdate = now;
                             Application.Current.Dispatcher.InvokeAsync(() =>
                             {
-                                DrawTreemap(_treeRoot);
+                                DrawTreemap(_currentViewRoot);
                                 UpdateFooter(item);
                             });
                         }
@@ -230,7 +230,7 @@ namespace SpaceFindr
                             _treeRoot = rootItem;
                             _currentViewRoot = rootItem;
                             UpdateBreadcrumbBar(rootItem);
-                            DrawTreemap(rootItem);
+                            DrawTreemap(_currentViewRoot);
                             UpdateFooter(rootItem);
                         });
                     });
@@ -422,7 +422,7 @@ namespace SpaceFindr
                         {
                             if (_progressStopwatch.ElapsedMilliseconds > 2000)
                             {
-                                DrawTreemap(_treeRoot);
+                                DrawTreemap(_currentViewRoot);
                                 UpdateFilesListView(); // Throttle file list updates to match treemap
                                 _progressStopwatch.Restart();
                             }
@@ -891,7 +891,7 @@ namespace SpaceFindr
                             _lastFooterUpdate = now;
                             Application.Current.Dispatcher.InvokeAsync(() =>
                             {
-                                DrawTreemap(_treeRoot);
+                                DrawTreemap(_currentViewRoot);
                                 UpdateFooter(item);
                             });
                         }
