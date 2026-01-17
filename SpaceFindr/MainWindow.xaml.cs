@@ -187,6 +187,12 @@ namespace SpaceFindr
 
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control && e.Key == Key.O)
+            {
+                e.Handled = true;
+                BrowseButton_Click(BrowseButton, new RoutedEventArgs());
+                return;
+            }
             if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control &&
                 (Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt &&
                 e.Key >= Key.A && e.Key <= Key.Z)

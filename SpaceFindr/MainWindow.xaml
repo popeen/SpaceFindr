@@ -82,7 +82,9 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Button x:Name="BrowseButton" Content="Select Folder" Width="150" Height="40" Margin="0,0,10,0"
-                    Click="BrowseButton_Click" Style="{StaticResource BrowseButtonStyle}" Grid.Column="0"/>
+                    Click="BrowseButton_Click" Style="{StaticResource BrowseButtonStyle}" Grid.Column="0"
+                    ToolTip="Scan a folder or drive (Ctrl+O)">
+            </Button>
             <Border x:Name="BreadcrumbBarBorder" Background="#F5F5F5" Padding="8,0" Height="40" VerticalAlignment="Center"
                     BorderBrush="#B4C7E7" BorderThickness="1" CornerRadius="6" MouseDown="BreadcrumbBar_MouseDown"
                     Visibility="Collapsed" Grid.Column="1">
