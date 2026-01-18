@@ -78,7 +78,12 @@ namespace SpaceFindr
             SwitchUsedAndFreeCheckBox.IsChecked = _switchUsedAndFreeInDriveView;
             CheckUpdatesOnStartCheckBox.IsChecked = _checkUpdatesOnStart;
             IgnoreReparsePointsCheckBox.IsChecked = _ignoreReparsePoints;
+            ShowRemovableDrivesCheckBox.IsChecked = _showRemovableDrives;
+            ShowNetworkDrivesCheckBox.IsChecked = _showNetworkDrives;
+            ShowTipsCheckBox.IsChecked = _showTips;
             ShowChildFoldersInTreemapCheckBox.IsChecked = _showChildFoldersInTreemap;
+            // Save settings on window close
+            this.Closing += (s, e) => SaveSettingsToRegistry();
             // Set _isInitializing to false only after all checkboxes are set
             _isInitializing = false;
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
