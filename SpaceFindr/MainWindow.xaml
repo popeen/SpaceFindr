@@ -177,7 +177,7 @@
                                             When enabled, the treemap will show up to 2 levels of subdirectories inside each folder rectangle.
                                         </TextBlock>
                                         <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" FontStyle="Italic">
-                                            This option is still very much experimental and may be a lot 
+                                            This option is still very much experimental and may change in the future.
                                         </TextBlock>
                                     </StackPanel>
                                 </ToolTip>
