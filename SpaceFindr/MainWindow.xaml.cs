@@ -51,10 +51,14 @@ namespace SpaceFindr
         private const string ShowRemovableDrivesKey = "ShowRemovableDrives";
         private const string ShowNetworkDrivesKey = "ShowNetworkDrives";
         private const string ShowTipsKey = "ShowTips";
+        private const string ShowChildFoldersInTreemapKey = "ShowChildFoldersInTreemap";
         // For the Switch used and free in drive view setting
         private bool _switchUsedAndFreeInDriveView = false;
         private const string SwitchUsedAndFreeKey = "SwitchUsedAndFreeInDriveView";
         private bool _isInitializing = true;
+
+        // Track whether to show child folders in treemap
+        private bool _showChildFoldersInTreemap = false;
 
         private bool _breadcrumbEditMode = false;
 
@@ -65,8 +69,6 @@ namespace SpaceFindr
             "TIP: Press Ctrl+Alt+drive letter to quickly scan a drive (e.g. Ctrl+Alt+C for C:)."
         };
 
-        private bool _showChildFoldersInTreemap = true;
-
         public MainWindow()
         {
             InitializeComponent();
@@ -76,10 +78,9 @@ namespace SpaceFindr
             SwitchUsedAndFreeCheckBox.IsChecked = _switchUsedAndFreeInDriveView;
             CheckUpdatesOnStartCheckBox.IsChecked = _checkUpdatesOnStart;
             IgnoreReparsePointsCheckBox.IsChecked = _ignoreReparsePoints;
-            ShowRemovableDrivesCheckBox.IsChecked = true;
-            ShowNetworkDrivesCheckBox.IsChecked = true;
+            ShowChildFoldersInTreemapCheckBox.IsChecked = _showChildFoldersInTreemap;
+            // Set _isInitializing to false only after all checkboxes are set
             _isInitializing = false;
-            SwitchUsedAndFreeCheckBox.IsChecked = _switchUsedAndFreeInDriveView;
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
             this.Title = $"SpaceFindr BETA v.{version}";
             this.PreviewMouseDown += MainWindow_PreviewMouseDown;
@@ -97,8 +98,6 @@ namespace SpaceFindr
             {
                 _ = CheckForUpdatesAsync();
             }
-            ShowChildFoldersInTreemapCheckBox.Checked += ShowChildFoldersInTreemapCheckBox_Checked;
-            ShowChildFoldersInTreemapCheckBox.Unchecked += ShowChildFoldersInTreemapCheckBox_Unchecked;
         }
         private void ShowUsedSpaceCheckBox_Checked(object sender, RoutedEventArgs e)
         {
@@ -197,7 +196,7 @@ namespace SpaceFindr
                     _showNetworkDrives = Convert.ToBoolean(key.GetValue(ShowNetworkDrivesKey, true));
                     _showTips = Convert.ToBoolean(key.GetValue(ShowTipsKey, true));
                     _switchUsedAndFreeInDriveView = Convert.ToBoolean(key.GetValue(SwitchUsedAndFreeKey, false));
-                    _showChildFoldersInTreemap = Convert.ToBoolean(key.GetValue("ShowChildFoldersInTreemap", true));
+                    _showChildFoldersInTreemap = Convert.ToBoolean(key.GetValue(ShowChildFoldersInTreemapKey, false));
                 }
             }
         }
@@ -214,7 +213,7 @@ namespace SpaceFindr
                 key.SetValue(ShowNetworkDrivesKey, _showNetworkDrives);
                 key.SetValue(ShowTipsKey, _showTips);
                 key.SetValue(SwitchUsedAndFreeKey, _switchUsedAndFreeInDriveView);
-                key.SetValue("ShowChildFoldersInTreemap", _showChildFoldersInTreemap);
+                key.SetValue(ShowChildFoldersInTreemapKey, _showChildFoldersInTreemap);
             }
         }
 
@@ -638,7 +637,7 @@ namespace SpaceFindr
             if (root == null || root.Children == null || root.Children.Count == 0) return;
 
             string driveRoot = System.IO.Path.GetPathRoot(root.FullPath);
-            var children = root.Children.ToList();
+            List<StorageItem> children = root.Children.ToList();
             bool isDriveRoot = string.Equals(root.FullPath, driveRoot, StringComparison.OrdinalIgnoreCase);
             if (isDriveRoot && _showFreeSpace)
             {
@@ -672,282 +671,187 @@ namespace SpaceFindr
             UpdateBreadcrumbBar(root);
             UpdateFooter(root);
 
-            var rects = TreemapHelper.Squarify(children, 0, 0, width, height);
-            double headerHeight = 24;
-            double childMargin = 4;
-            double minLabelSize = 20;
-            double medLabelSize = 80;
+            if (_showChildFoldersInTreemap)
+            {
+                DrawTreemapRecursive(children, 0, 0, width, height, 1);
+            }
+            else
+            {
+                var rects = TreemapHelper.Squarify(children, 0, 0, width, height);
+                foreach (var treemapRect in rects)
+                {
+                    DrawTreemapRect(treemapRect, 1);
+                }
+            }
+        }
+
+        // Draws treemap recursively up to 2 levels
+        private void DrawTreemapRecursive(List<StorageItem> items, double x, double y, double width, double height, int level)
+        {
+            var rects = TreemapHelper.Squarify(items, x, y, width, height);
+            const double childPadding = 4.0;
+            const double labelHeight = 18.0;
             foreach (var treemapRect in rects)
             {
-                var child = treemapRect.Item;
-                var r = treemapRect.Rect;
-                Brush fillBrush;
-                bool isFreeSpaceRect = isDriveRoot && child.Name == "Free space" && string.Equals(child.FullPath, driveRoot, StringComparison.OrdinalIgnoreCase);
-                if (isFreeSpaceRect)
-                    fillBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCC"));
-                else if (child.IsFolder)
-                    fillBrush = Brushes.LightGreen;
-                else if (child.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                    fillBrush = Brushes.SteelBlue;
-                else
-                    fillBrush = Brushes.Yellow;
+                // Always draw the parent rectangle first
+                DrawTreemapRect(treemapRect, level, showLabelAtTop: true, labelHeight: labelHeight);
 
-                // Draw parent rectangle (with header)
-                var parentRect = new System.Windows.Shapes.Rectangle
+                // Only recurse for folders, and only up to 2 levels, and only if the rectangle is large enough
+                if (level < 2 && treemapRect.Item.IsFolder && treemapRect.Item.Children != null && treemapRect.Item.Children.Count > 0)
                 {
-                    Width = r.Width,
-                    Height = r.Height,
-                    Fill = fillBrush,
-                    Stroke = Brushes.Black,
-                    StrokeThickness = 1,
-                    ToolTip = isFreeSpaceRect ? $"Free space: {FormatSize(child.Size)}" : $"{child.Name}\n{FormatSize(child.Size)}"
-                };
-                TreemapCanvas.Children.Add(parentRect);
-                Canvas.SetLeft(parentRect, r.X);
-                Canvas.SetTop(parentRect, r.Y);
-
-                // Draw parent label as a header at the top only if children are drawn
-                bool willDrawChildren = false;
-                if (_showChildFoldersInTreemap && child.IsFolder && child.Children != null && child.Children.Count > 0)
-                {
-                    var childFolders = child.Children.Where(x => x.IsFolder && x.Size > 0).ToList();
-                    if (childFolders.Count > 0 && childFolders.Count <= 100)
-                        willDrawChildren = true;
-                }
-                if (!isFreeSpaceRect && child.IsFolder && willDrawChildren)
-                {
-                    var headerLabel = new TextBlock
+                    // Only subdivide if the rectangle is reasonably large
+                    if (treemapRect.Rect.Width > 2 * childPadding + 20 && treemapRect.Rect.Height > labelHeight + childPadding + 20)
                     {
-                        Text = $"{child.Name} ({FormatSize(child.Size)})",
+                        // Inset children by padding and leave space for label at the top
+                        double childX = treemapRect.Rect.X + childPadding;
+                        double childY = treemapRect.Rect.Y + labelHeight + childPadding;
+                        double childW = treemapRect.Rect.Width - 2 * childPadding;
+                        double childH = treemapRect.Rect.Height - labelHeight - 2 * childPadding;
+                        if (childW > 0 && childH > 0)
+                        {
+                            DrawTreemapRecursive(treemapRect.Item.Children, childX, childY, childW, childH, level + 1);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Draws a single rectangle and label, and attaches context menu/zoom
+        private void DrawTreemapRect(TreemapRect treemapRect, int level, bool showLabelAtTop = false, double labelHeight = 18.0)
+        {
+            var child = treemapRect.Item;
+            var r = treemapRect.Rect;
+            string driveRoot = System.IO.Path.GetPathRoot(child.FullPath);
+            bool isDriveRoot = string.Equals(child.FullPath, driveRoot, StringComparison.OrdinalIgnoreCase);
+            Brush fillBrush;
+            bool isFreeSpaceRect = isDriveRoot && child.Name == "Free space" && string.Equals(child.FullPath, driveRoot, StringComparison.OrdinalIgnoreCase);
+            if (isFreeSpaceRect)
+                fillBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCC"));
+            else if (child.IsFolder)
+                fillBrush = Brushes.LightGreen;
+            else if (child.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                fillBrush = Brushes.SteelBlue;
+            else
+                fillBrush = Brushes.Yellow;
+            var rect = new System.Windows.Shapes.Rectangle
+            {
+                Width = r.Width,
+                Height = r.Height,
+                Fill = fillBrush,
+                Stroke = Brushes.Black,
+                StrokeThickness = 1,
+                ToolTip = isFreeSpaceRect ? $"Free space: {FormatSize(child.Size)}" : $"{child.Name}\n{FormatSize(child.Size)}"
+            };
+            // Only attach context menu and zoom for real files/folders
+            if (!isFreeSpaceRect)
+            {
+                // Context menu (same as before)
+                var contextMenu = new System.Windows.Controls.ContextMenu();
+                var askAiMenu = new MenuItem { Header = "Ask AI" };
+                askAiMenu.Click += (s, e) => AskAI(child);
+                if (child.IsFolder)
+                {
+                    var deleteFolder = new MenuItem { Header = "Delete Folder" };
+                    deleteFolder.Click += (s, e) => DeleteFolder(child);
+                    var openInExplorer = new MenuItem { Header = "Open in File Explorer" };
+                    openInExplorer.Click += (s, e) => OpenInExplorer(child.FullPath);
+                    contextMenu.Items.Add(openInExplorer);
+                    contextMenu.Items.Add(askAiMenu);
+                    contextMenu.Items.Add(deleteFolder);
+                }
+                else
+                {
+                    var deleteFile = new MenuItem { Header = "Delete File" };
+                    deleteFile.Click += (s, e) => DeleteFile(child);
+                    var openFolder = new MenuItem { Header = "Open in File Explorer" };
+                    openFolder.Click += (s, e) => OpenInExplorer(System.IO.Path.GetDirectoryName(child.FullPath));
+                    var openFile = new MenuItem { Header = "Open File" };
+                    openFile.Click += (s, e) => OpenFile(child.FullPath);
+                    contextMenu.Items.Add(openFile);
+                    contextMenu.Items.Add(openFolder);
+                    contextMenu.Items.Add(askAiMenu);
+                    contextMenu.Items.Add(deleteFile);
+                }
+                rect.ContextMenu = contextMenu;
+                // Only attach zoom for folders
+                if (child.IsFolder)
+                {
+                    rect.MouseLeftButtonUp += async (s, e) =>
+                    {
+                        _loadingCts?.Cancel();
+                        _loadingCts = new CancellationTokenSource();
+                        _progressStopwatch.Restart();
+                        if (child.Children == null || child.Children.Count == 0)
+                        {
+                            var progress = new Progress<StorageItem>(item =>
+                            {
+                                if (_progressStopwatch.ElapsedMilliseconds > 2000)
+                                {
+                                    DrawTreemap(child);
+                                    _progressStopwatch.Restart();
+                                }
+                            });
+                            await Task.Run(() => StorageItem.BuildFromDirectory(child.FullPath, progress, child, null, _ignoreReparsePoints), _loadingCts.Token);
+                        }
+                        ScanningSpinner.Visibility = Visibility.Collapsed;
+                        _backStack.Push(_currentViewRoot);
+                        _currentViewRoot = child;
+                        _forwardStack.Clear();
+                        UpdateBreadcrumbBar(child);
+                        DrawTreemap(child);
+                    };
+                }
+            }
+            TreemapCanvas.Children.Add(rect);
+            Canvas.SetLeft(rect, r.X);
+            Canvas.SetTop(rect, r.Y);
+            // Always show parent label at the top if requested
+            if (showLabelAtTop && r.Height > labelHeight)
+            {
+                var label = new TextBlock
+                {
+                    Text = child.Name,
+                    Foreground = Brushes.Black,
+                    FontWeight = FontWeights.Bold,
+                    FontSize = 12,
+                    TextAlignment = TextAlignment.Left,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    IsHitTestVisible = false,
+                    Padding = new Thickness(4, 0, 4, 0),
+                    VerticalAlignment = VerticalAlignment.Top
+                };
+                label.Width = r.Width;
+                label.Height = labelHeight;
+                TreemapCanvas.Children.Add(label);
+                Canvas.SetLeft(label, r.X);
+                Canvas.SetTop(label, r.Y);
+            }
+            else
+            {
+                double minLabelSize = 40;
+                double medLabelSize = 80;
+                string labelText = null;
+                if (r.Width > medLabelSize && r.Height > minLabelSize)
+                    labelText = isFreeSpaceRect ? $"Free space\n{FormatSize(child.Size)}" : $"{child.Name}\n{FormatSize(child.Size)}";
+                else if (r.Width > minLabelSize && r.Height > minLabelSize)
+                    labelText = isFreeSpaceRect ? "Free space" : child.Name;
+                if (!string.IsNullOrEmpty(labelText))
+                {
+                    var label = new TextBlock
+                    {
+                        Text = labelText,
                         Foreground = Brushes.Black,
                         FontWeight = FontWeights.Bold,
-                        FontSize = 13,
-                        TextAlignment = TextAlignment.Left,
+                        FontSize = r.Width > medLabelSize ? 12 : 10,
+                        TextAlignment = TextAlignment.Center,
                         TextTrimming = TextTrimming.CharacterEllipsis,
-                        IsHitTestVisible = false,
-                        Padding = new Thickness(6, 2, 6, 2),
-                        Background = null
+                        IsHitTestVisible = false
                     };
-                    headerLabel.Width = r.Width;
-                    headerLabel.Height = headerHeight;
-                    TreemapCanvas.Children.Add(headerLabel);
-                    Canvas.SetLeft(headerLabel, r.X);
-                    Canvas.SetTop(headerLabel, r.Y);
-                }
-
-                // Draw up to 2 levels of child folders inside parent folder rectangle, with margin and below header, only if option is enabled
-                if (willDrawChildren)
-                {
-                    var childFolders = child.Children.Where(x => x.IsFolder && x.Size > 0).ToList();
-                    double subX = r.X + childMargin;
-                    double subY = r.Y + headerHeight + childMargin;
-                    double subW = Math.Max(0, r.Width - 2 * childMargin);
-                    double subH = Math.Max(0, r.Height - headerHeight - 2 * childMargin);
-                    var subRects = TreemapHelper.Squarify(childFolders, subX, subY, subW, subH);
-                    foreach (var subRect in subRects)
-                    {
-                        var subItem = subRect.Item;
-                        var sr = subRect.Rect;
-                        var subFill = Brushes.LightGreen;
-                        var subRectangle = new System.Windows.Shapes.Rectangle
-                        {
-                            Width = sr.Width,
-                            Height = sr.Height,
-                            Fill = subFill,
-                            Stroke = Brushes.Black,
-                            StrokeThickness = 1,
-                            ToolTip = $"{subItem.Name}\n{FormatSize(subItem.Size)}"
-                        };
-                        subRectangle.MouseLeftButtonUp += (s, e) =>
-                        {
-                            _currentViewRoot = subItem;
-                            UpdateBreadcrumbBar(subItem);
-                            DrawTreemap(subItem);
-                            UpdateFooter(subItem);
-                        };
-                        TreemapCanvas.Children.Add(subRectangle);
-                        Canvas.SetLeft(subRectangle, sr.X);
-                        Canvas.SetTop(subRectangle, sr.Y);
-
-                        if (sr.Width > minLabelSize && sr.Height > minLabelSize)
-                        {
-                            var subLabel = new TextBlock
-                            {
-                                Text = $"{subItem.Name}\n{FormatSize(subItem.Size)}",
-                                Foreground = Brushes.DarkBlue,
-                                FontWeight = FontWeights.Normal,
-                                FontSize = sr.Width > medLabelSize ? 11 : 9,
-                                TextAlignment = TextAlignment.Center,
-                                TextTrimming = TextTrimming.CharacterEllipsis,
-                                IsHitTestVisible = false
-                            };
-                            subLabel.Width = sr.Width;
-                            subLabel.Height = sr.Height;
-                            TreemapCanvas.Children.Add(subLabel);
-                            Canvas.SetLeft(subLabel, sr.X);
-                            Canvas.SetTop(subLabel, sr.Y + sr.Height / 2 - (sr.Width > medLabelSize ? 14 : 8));
-                        }
-
-                        // 2nd level: draw child folders of this child folder
-                        if (_showChildFoldersInTreemap && subItem.IsFolder && subItem.Children != null && subItem.Children.Count > 0)
-                        {
-                            var grandChildFolders = subItem.Children.Where(x => x.IsFolder && x.Size > 0).ToList();
-                            if (grandChildFolders.Count > 0 && grandChildFolders.Count <= 60)
-                            {
-                                var gRects = TreemapHelper.Squarify(grandChildFolders, sr.X + 2, sr.Y + 18 + 2, Math.Max(0, sr.Width - 4), Math.Max(0, sr.Height - 18 - 4));
-                                // Draw header for 2nd level
-                                var gHeaderLabel = new TextBlock
-                                {
-                                    Text = $"{subItem.Name}",
-                                    Foreground = Brushes.DarkBlue,
-                                    FontWeight = FontWeights.Bold,
-                                    FontSize = 10,
-                                    TextAlignment = TextAlignment.Left,
-                                    TextTrimming = TextTrimming.CharacterEllipsis,
-                                    IsHitTestVisible = false,
-                                    Padding = new Thickness(3, 1, 3, 1),
-                                    Background = null
-                                };
-                                gHeaderLabel.Width = sr.Width;
-                                gHeaderLabel.Height = 18;
-                                TreemapCanvas.Children.Add(gHeaderLabel);
-                                Canvas.SetLeft(gHeaderLabel, sr.X);
-                                Canvas.SetTop(gHeaderLabel, sr.Y);
-
-                                foreach (var gRect in gRects)
-                                {
-                                    var gItem = gRect.Item;
-                                    var gr = gRect.Rect;
-                                    var gFill = Brushes.LightGreen;
-                                    var gRectangle = new System.Windows.Shapes.Rectangle
-                                    {
-                                        Width = gr.Width,
-                                        Height = gr.Height,
-                                        Fill = gFill,
-                                        Stroke = Brushes.Black,
-                                        StrokeThickness = 1,
-                                        ToolTip = $"{gItem.Name}\n{FormatSize(gItem.Size)}"
-                                    };
-                                    gRectangle.MouseLeftButtonUp += (s, e) =>
-                                    {
-                                        _currentViewRoot = gItem;
-                                        UpdateBreadcrumbBar(gItem);
-                                        DrawTreemap(gItem);
-                                        UpdateFooter(gItem);
-                                    };
-                                    TreemapCanvas.Children.Add(gRectangle);
-                                    Canvas.SetLeft(gRectangle, gr.X);
-                                    Canvas.SetTop(gRectangle, gr.Y);
-
-                                    if (gr.Width > minLabelSize && gr.Height > minLabelSize)
-                                    {
-                                        var gLabel = new TextBlock
-                                        {
-                                            Text = $"{gItem.Name}\n{FormatSize(gItem.Size)}",
-                                            Foreground = Brushes.SlateBlue,
-                                            FontWeight = FontWeights.Normal,
-                                            FontSize = gr.Width > medLabelSize ? 9 : 8,
-                                            TextAlignment = TextAlignment.Center,
-                                            TextTrimming = TextTrimming.CharacterEllipsis,
-                                            IsHitTestVisible = false
-                                        };
-                                        gLabel.Width = gr.Width;
-                                        gLabel.Height = gr.Height;
-                                        TreemapCanvas.Children.Add(gLabel);
-                                        Canvas.SetLeft(gLabel, gr.X);
-                                        Canvas.SetTop(gLabel, gr.Y + gr.Height / 2 - (gr.Width > medLabelSize ? 10 : 6));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Context menu and zoom for parent
-                if (!isFreeSpaceRect)
-                {
-                    var contextMenu = new System.Windows.Controls.ContextMenu();
-                    var askAiMenu = new MenuItem { Header = "Ask AI" };
-                    askAiMenu.Click += (s, e) => AskAI(child);
-                    if (child.IsFolder)
-                    {
-                        var deleteFolder = new MenuItem { Header = "Delete Folder" };
-                        deleteFolder.Click += (s, e) => DeleteFolder(child);
-                        var openInExplorer = new MenuItem { Header = "Open in File Explorer" };
-                        openInExplorer.Click += (s, e) => OpenInExplorer(child.FullPath);
-                        contextMenu.Items.Add(openInExplorer);
-                        contextMenu.Items.Add(askAiMenu);
-                        contextMenu.Items.Add(deleteFolder);
-                    }
-                    else
-                    {
-                        var deleteFile = new MenuItem { Header = "Delete File" };
-                        deleteFile.Click += (s, e) => DeleteFile(child);
-                        var openFolder = new MenuItem { Header = "Open in File Explorer" };
-                        openFolder.Click += (s, e) => OpenInExplorer(System.IO.Path.GetDirectoryName(child.FullPath));
-                        var openFile = new MenuItem { Header = "Open File" };
-                        openFile.Click += (s, e) => OpenFile(child.FullPath);
-                        contextMenu.Items.Add(openFile);
-                        contextMenu.Items.Add(openFolder);
-                        contextMenu.Items.Add(askAiMenu);
-                        contextMenu.Items.Add(deleteFile);
-                    }
-                    parentRect.ContextMenu = contextMenu;
-                    if (child.IsFolder)
-                    {
-                        parentRect.MouseLeftButtonUp += async (s, e) =>
-                        {
-                            _loadingCts?.Cancel();
-                            _loadingCts = new CancellationTokenSource();
-                            _progressStopwatch.Restart();
-                            if (child.Children == null || child.Children.Count == 0)
-                            {
-                                var progress = new Progress<StorageItem>(item =>
-                                {
-                                    if (_progressStopwatch.ElapsedMilliseconds > 2000)
-                                    {
-                                        DrawTreemap(child);
-                                        _progressStopwatch.Restart();
-                                    }
-                                });
-                                await Task.Run(() => StorageItem.BuildFromDirectory(child.FullPath, progress, child, null, _ignoreReparsePoints), _loadingCts.Token);
-                            }
-                            ScanningSpinner.Visibility = Visibility.Collapsed;
-                            _backStack.Push(_currentViewRoot);
-                            _currentViewRoot = child;
-                            _forwardStack.Clear();
-                            UpdateBreadcrumbBar(child);
-                            DrawTreemap(child);
-                        };
-                    }
-                }
-
-                // For non-folder or free space, or for folders with no children drawn, show label centered
-                if (!child.IsFolder || isFreeSpaceRect || (child.IsFolder && !willDrawChildren))
-                {
-                    string labelText = null;
-                    if (r.Width > medLabelSize && r.Height > minLabelSize)
-                        labelText = isFreeSpaceRect ? $"Free space\n{FormatSize(child.Size)}" : $"{child.Name}\n{FormatSize(child.Size)}";
-                    else if (r.Width > minLabelSize && r.Height > minLabelSize)
-                        labelText = isFreeSpaceRect ? "Free space" : child.Name;
-                    if (!string.IsNullOrEmpty(labelText))
-                    {
-                        var label = new TextBlock
-                        {
-                            Text = labelText,
-                            Foreground = Brushes.Black,
-                            FontWeight = FontWeights.Bold,
-                            FontSize = r.Width > medLabelSize ? 12 : 10,
-                            TextAlignment = TextAlignment.Center,
-                            TextTrimming = TextTrimming.CharacterEllipsis,
-                            IsHitTestVisible = false
-                        };
-                        label.Width = r.Width;
-                        label.Height = r.Height;
-                        TreemapCanvas.Children.Add(label);
-                        Canvas.SetLeft(label, r.X);
-                        Canvas.SetTop(label, r.Y + r.Height / 2 - (r.Width > medLabelSize ? 16 : 10));
-                    }
+                    label.Width = r.Width;
+                    label.Height = r.Height;
+                    TreemapCanvas.Children.Add(label);
+                    Canvas.SetLeft(label, r.X);
+                    Canvas.SetTop(label, r.Y + r.Height / 2 - (r.Width > medLabelSize ? 16 : 10));
                 }
             }
         }
@@ -1106,10 +1010,6 @@ namespace SpaceFindr
             foreach (var drive in DriveInfo.GetDrives())
             {
                 if (!drive.IsReady) continue;
-                // Filter removable and network drives based on settings
-                if (drive.DriveType == DriveType.Removable && !_showRemovableDrives) continue;
-                if (drive.DriveType == DriveType.Network && !_showNetworkDrives) continue;
-
                 string root = drive.Name;
                 string label = drive.VolumeLabel;
                 string driveLetter = root.Length >= 2 ? root.Substring(0, 2) : root;
@@ -1431,16 +1331,14 @@ namespace SpaceFindr
         private void ShowChildFoldersInTreemapCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             _showChildFoldersInTreemap = true;
-            if (!_isInitializing) SaveSettingsToRegistry();
-            if (_currentViewRoot != null)
+            if (!_isInitializing && _currentViewRoot != null)
                 DrawTreemap(_currentViewRoot);
         }
 
         private void ShowChildFoldersInTreemapCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             _showChildFoldersInTreemap = false;
-            if (!_isInitializing) SaveSettingsToRegistry();
-            if (_currentViewRoot != null)
+            if (!_isInitializing && _currentViewRoot != null)
                 DrawTreemap(_currentViewRoot);
         }
     }
