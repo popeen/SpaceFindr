@@ -1,6 +1,6 @@
 ![SpaceFindr Icon](logo.png)
-[![downloads-shield]][cvm-link]
-[![issues-shield]](issues)
+[![downloads-shield]][downloads-link]
+[![issues-shield]][issues-link]
 [![license-shield]](LICENSE.md)
 [![Buy me a coffee][buymeacoffee-shield]][buymeacoffee-link]
 
@@ -48,11 +48,12 @@ Created by [popeen](https://popeen.com).
 *SpaceFindr is open source and welcomes contributions and feedback!*
 
 [downloads-shield]: https://img.shields.io/github/downloads/popeen/SpaceFindr/total
-[cvm-link]: https://github.com/popeen/SpaceFindr/releases
+[downloads-link]: https://github.com/popeen/SpaceFindr/releases
 
 [issues-shield]: https://img.shields.io/github/issues-raw/popeen/SpaceFindr.svg
+[issues-link]: https://github.com/popeen/SpaceFindr/issues
 
 [license-shield]: https://img.shields.io/github/license/popeen/SpaceFindr.svg
 
 [buymeacoffee-shield]: https://img.shields.io/badge/donation-Buy%20me%20a%20coffee-orange
-[buymeacoffee-link]: https://www.buymeacoffee.com/popeen
+[buymeacoffee-link]: https://donations.popeen.com
